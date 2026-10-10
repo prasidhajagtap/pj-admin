@@ -180,3 +180,59 @@ body.doc { padding: 24px 16px; }
 .doc-card .brand small { display: block; color: var(--muted); font-size: 12px; }
 .doc-card .credits { margin-top: 28px; border-top: 1px solid var(--edge); padding-top: 14px; }
 .layout { height: calc(100vh - 118px); }
+/* ---------- Click feedback ---------- */
+.btn, .nav-item, .row-btn, .icon-btn, .pill { position: relative; overflow: hidden; transition: transform .12s ease, background .2s, box-shadow .2s, opacity .2s; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.25); }
+.btn:active:not(:disabled), .nav-item:active, .row-btn:active, .icon-btn:active, .pill:active { transform: scale(.95); }
+.btn:focus-visible, .nav-item:focus-visible, .row-btn:focus-visible, .icon-btn:focus-visible, .pill:focus-visible, .dropzone:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.ripple { position: absolute; border-radius: 50%; pointer-events: none; background: rgba(255,255,255,.45); transform: scale(0); animation: ripple .55s ease-out forwards; }
+@keyframes ripple { to { transform: scale(2.6); opacity: 0; } }
+/* Busy buttons: spinner + "working" label, no double clicks */
+.btn.loading { color: transparent !important; pointer-events: none; }
+.btn.loading::after { content: ""; position: absolute; inset: 0; margin: auto; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: spin .7s linear infinite; }
+.icon-btn.loading, .btn.icon-only.loading { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.nav-item.active::before { content: ""; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px; border-radius: 3px; background: var(--brand); }
+/* Loading placeholders */
+.skeleton td { padding: 12px; }
+.skeleton span { display: block; height: 10px; border-radius: 6px; background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.16), rgba(255,255,255,.06)); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { from { background: rgba(52,211,153,.25); } }
+
+/* ---------- Logo (white tile so the navy logo reads on dark glass) ---------- */
+.logo-img { background: #fff; padding: 4px; }
+.logo-img.big { padding: 10px; }
+
+/* ---------- App logo module ---------- */
+.logo-nav { justify-content: flex-start; background: rgba(245,158,11,.14); border-color: rgba(245,158,11,.3); margin-top: 6px; }
+.logo-nav.active { background: rgba(245,158,11,.28); }
+.logo-module { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; overflow: auto; }
+.logo-block { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 16px; display: grid; gap: 12px; align-content: start; }
+.logo-block h3, .history-title { margin: 0; font-size: 15px; }
+.history-title { margin: 18px 0 10px; }
+.logo-previews { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.logo-tile { aspect-ratio: 1; border-radius: 18px; display: grid; place-items: center; padding: 14%; border: 1px solid rgba(255,255,255,.12); }
+.logo-tile.light { background: #fff; }
+.logo-tile.dark { background: #0b1020; }
+.logo-tile.checker { background: repeating-conic-gradient(#e5e7eb 0 25%, #fff 0 50%) 0 0 / 20px 20px; }
+.logo-tile img { width: 100%; height: 100%; object-fit: contain; }
+.dropzone { display: grid; justify-items: center; gap: 6px; padding: 26px 16px; border: 2px dashed rgba(255,255,255,.25); border-radius: 18px; cursor: pointer; text-align: center; transition: border-color .2s, background .2s, transform .12s; }
+.dropzone:hover, .dropzone.over { border-color: var(--violet); background: rgba(139,92,246,.12); }
+.dropzone:active { transform: scale(.98); }
+.drop-icon { font-size: 26px; }
+.logo-history { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding-bottom: 8px; }
+.history-card { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 10px; display: grid; gap: 8px; font-size: 12px; }
+.history-card .logo-tile { padding: 12%; }
+/* Busy state for small controls without room for a spinner */
+.row-btn.loading, .pill.loading { opacity: .55; animation: pulse 1s ease-in-out infinite; pointer-events: none; }
+@keyframes pulse { 50% { opacity: .25; } }
+
+/* Sticky row actions sit on a solid background so long cells don't show through */
+.grid td.actions { background: #1b2035; box-shadow: -12px 0 12px -6px rgba(0,0,0,.5); }
+.grid tr:hover td.actions { background: #252a42; }
+.logo-history > p { grid-column: 1 / -1; margin: 0; }
+.logo-tile { position: relative; }
+.logo-tile[data-label]::after { content: attr(data-label); position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 11px; letter-spacing: .04em; color: #64748b; }
+.logo-tile.dark[data-label]::after { color: #94a3b8; }
