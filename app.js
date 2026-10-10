@@ -31,6 +31,7 @@ function el(tag, props = {}, ...children) {
   for (const [k, v] of Object.entries(props)) {
     if (k === 'class') node.className = v;
     else if (k === 'text') node.textContent = v;
+    else if (k === 'style') Object.assign(node.style, v); // CSSOM, allowed by the page's CSP
     else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
     else if (v !== undefined && v !== null && v !== false) node.setAttribute(k, v === true ? '' : v);
   }
@@ -110,12 +111,24 @@ async function discoverServer() {
       if (!ping.ok) throw new Error();
       state.api = base.replace(/\/$/, '');
       setServerPill('online', state.api.replace(/^https?:\/\//, ''));
+      useLogoFromDatabase();
       return true;
     } catch { /* fall through */ }
   }
   state.api = null;
   setServerPill('offline', 'Server offline');
   return false;
+}
+
+// The PJ logo is stored in the database (brand_assets); the bundled icon.png is only a fallback.
+function useLogoFromDatabase() {
+  const url = `${state.api}/brand/logo`;
+  const probe = new Image();
+  probe.onload = () => {
+    document.querySelectorAll('.brand-img').forEach((img) => { img.src = url; });
+    $('favicon').href = url;
+  };
+  probe.src = url;
 }
 
 // ---------- auth ----------
@@ -213,7 +226,7 @@ function renderChanges() {
   const type = $('changesType').value;
   const shown = changes.filter((c) => (!type || c.type === type) &&
     (!q || `${c.title} ${c.summary} ${c.area}`.toLowerCase().includes(q)));
-  $('changesList').replaceChildren(...shown.map((c, i) => el('li', { style: `animation-delay:${Math.min(i, 12) * 30}ms` },
+  $('changesList').replaceChildren(...shown.map((c, i) => el('li', { style: { animationDelay: `${Math.min(i, 12) * 30}ms` } },
     el('div', { class: 'when' },
       new Date(c.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),
       el('span', { class: `tag ${c.type}`, text: c.type }),
