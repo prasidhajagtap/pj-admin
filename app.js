@@ -45,6 +45,42 @@ function toast(message, kind = 'ok') {
   setTimeout(() => t.remove(), kind === 'err' ? 7000 : 3500);
 }
 
+// ---------- click feedback ----------
+// A ripple spreads from the click point on every button-like element.
+document.addEventListener('pointerdown', (e) => {
+  const target = e.target.closest('.btn, .nav-item, .row-btn, .icon-btn, .pill');
+  if (!target || target.disabled) return;
+  const rect = target.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const dot = el('span', { class: 'ripple', style: {
+    width: `${size}px`, height: `${size}px`,
+    left: `${e.clientX - rect.left - size / 2}px`, top: `${e.clientY - rect.top - size / 2}px`,
+  } });
+  target.append(dot);
+  dot.addEventListener('animationend', () => dot.remove());
+});
+
+/** Shows a spinner on `button` while `task` runs and ignores repeat clicks meanwhile. */
+async function busy(button, task) {
+  if (button?.classList.contains('loading')) return undefined;
+  button?.classList.add('loading');
+  button?.setAttribute('aria-busy', 'true');
+  try {
+    return await task();
+  } finally {
+    button?.classList.remove('loading');
+    button?.removeAttribute('aria-busy');
+  }
+}
+
+/** Shimmering placeholder rows while a table loads. */
+function showSkeleton(table, cols = 5, rows = 6) {
+  table.replaceChildren(el('tbody', {}, Array.from({ length: rows }, (_, r) => el('tr', { class: 'skeleton' },
+    Array.from({ length: Math.min(cols, 8) }, (_, c) => el('td', {}, el('span', { style: { width: `${45 + ((r * 7 + c * 13) % 45)}%` } })))))));
+}
+
+const formatBytes = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
 function show(view) {
   for (const v of ['loginView', 'offlineView', 'appView']) $(v).classList.toggle('hidden', v !== view);
   $('adminBox').classList.toggle('hidden', view !== 'appView');
@@ -120,9 +156,9 @@ async function discoverServer() {
   return false;
 }
 
-// The PJ logo is stored in the database (brand_assets); the bundled icon.png is only a fallback.
+// The app logo is stored in the database (brand_assets.app_logo); the bundled icon.png is only a fallback.
 function useLogoFromDatabase() {
-  const url = `${state.api}/brand/logo`;
+  const url = `${state.api}/brand/app_logo?v=${Date.now()}`;
   const probe = new Image();
   probe.onload = () => {
     document.querySelectorAll('.brand-img').forEach((img) => { img.src = url; });
@@ -194,10 +230,156 @@ function renderTableList() {
 }
 
 function switchPanel(panel) {
-  for (const p of ['tableView', 'sqlView', 'changesView', 'emptyView']) $(p).classList.toggle('hidden', p !== panel);
+  for (const p of ['tableView', 'sqlView', 'changesView', 'logoView', 'emptyView']) $(p).classList.toggle('hidden', p !== panel);
   $('sqlTab').classList.toggle('active', panel === 'sqlView');
   $('changesTab').classList.toggle('active', panel === 'changesView');
+  $('logoTab').classList.toggle('active', panel === 'logoView');
   renderTableList();
+}
+
+// ---------- app logo ----------
+const LOGO_TYPES = { 'image/png': 'PNG', 'image/svg+xml': 'SVG' };
+let pendingLogo = null; // { mimeType, base64 }
+let objectUrls = [];
+
+function logoError(message) {
+  $('logoError').textContent = message;
+  $('publishLogo').disabled = true;
+}
+
+async function authedImageUrl(path) {
+  const res = await fetch(state.api + path, { headers: { Authorization: `Bearer ${state.token}` } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const url = URL.createObjectURL(await res.blob());
+  objectUrls.push(url);
+  return url;
+}
+
+async function loadLogo() {
+  try {
+    const { current, history } = await api('GET', '/admin/db/brand');
+    const url = `${state.api}/brand/app_logo?v=${current?.sha256 ?? Date.now()}`;
+    $('currentLogoLight').src = url;
+    $('currentLogoDark').src = url;
+    $('currentLogoMeta').textContent = current
+      ? `${LOGO_TYPES[current.mimeType] ?? current.mimeType}${current.width ? ` · ${current.width}×${current.height} px` : ''} · ${formatBytes(current.size)} · updated ${new Date(current.updatedAt).toLocaleString()}`
+      : 'No logo set yet';
+    renderLogoHistory(history);
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
+
+function renderLogoHistory(history) {
+  objectUrls.forEach((u) => URL.revokeObjectURL(u));
+  objectUrls = [];
+  if (!history.length) {
+    $('logoHistory').replaceChildren(el('p', { class: 'muted', text: 'No previous logos yet. Replaced logos appear here and can be restored.' }));
+    return;
+  }
+  $('logoHistory').replaceChildren(...history.map((h) => {
+    const img = el('img', { alt: 'Previous logo' });
+    authedImageUrl(`/admin/db/brand/history/${h.id}`).then((u) => { img.src = u; }).catch(() => { img.alt = 'Preview unavailable'; });
+    const restore = el('button', { class: 'btn ghost small', text: 'Restore', onclick: (e) => restoreLogo(h, e.currentTarget) });
+    return el('div', { class: 'history-card' },
+      el('div', { class: 'logo-tile light' }, img),
+      el('span', { class: 'muted', text: `${LOGO_TYPES[h.mimeType] ?? h.mimeType} · ${formatBytes(h.size)}` }),
+      el('span', { class: 'muted', text: `Replaced ${new Date(h.replacedAt).toLocaleString()}` }),
+      restore);
+  }));
+}
+
+const loadImage = (url) => new Promise((resolve, reject) => {
+  const img = new Image();
+  img.onload = () => resolve(img);
+  img.onerror = reject;
+  img.src = url;
+});
+
+// True if any pixel is (partly) transparent.
+function hasTransparency(img) {
+  const scale = Math.min(1, 512 / Math.max(img.naturalWidth, img.naturalHeight));
+  const canvas = el('canvas', { width: Math.max(1, Math.round(img.naturalWidth * scale)), height: Math.max(1, Math.round(img.naturalHeight * scale)) });
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for (let i = 3; i < data.length; i += 4) if (data[i] < 250) return true;
+  return false;
+}
+
+const toBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result).split(',')[1]);
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
+async function pickLogo(file) {
+  pendingLogo = null;
+  $('logoError').textContent = '';
+  $('publishLogo').disabled = true;
+  $('newLogoPreview').classList.add('hidden');
+  if (!file) return;
+
+  const type = LOGO_TYPES[file.type] ? file.type
+    : /\.svg$/i.test(file.name) ? 'image/svg+xml' : /\.png$/i.test(file.name) ? 'image/png' : '';
+  if (!type) return logoError('Choose a PNG or SVG file.');
+  if (file.size > (type === 'image/png' ? 1024 * 1024 : 512 * 1024)) {
+    return logoError(`This file is too large (max ${type === 'image/png' ? '1 MB' : '512 KB'}).`);
+  }
+  const url = URL.createObjectURL(file);
+  objectUrls.push(url);
+  let img;
+  try {
+    img = await loadImage(url);
+  } catch {
+    return logoError('This image could not be read.');
+  }
+  if (type === 'image/png') {
+    const { naturalWidth: w, naturalHeight: h } = img;
+    if (w < 64 || h < 64 || w > 4096 || h > 4096) return logoError('PNG must be between 64 and 4096 pixels on each side.');
+    if (!hasTransparency(img)) return logoError('This PNG has no transparent background. Export it with transparency (alpha channel) and try again.');
+  }
+  pendingLogo = { mimeType: type, base64: await toBase64(file) };
+  $('newLogoLight').src = url;
+  $('newLogoDark').src = url;
+  $('newLogoMeta').textContent = `${file.name} · ${LOGO_TYPES[type]}${type === 'image/png' ? ` · ${img.naturalWidth}×${img.naturalHeight} px` : ''} · ${formatBytes(file.size)}`;
+  $('newLogoPreview').classList.remove('hidden');
+  $('publishLogo').disabled = false;
+}
+
+async function publishLogo() {
+  if (!pendingLogo) return;
+  const ok = await confirmDialog('Publish this logo?',
+    'It replaces the logo in the app and the admin panel. The current logo is kept under "Previous logos" so you can restore it.');
+  if (!ok) return;
+  await busy($('publishLogo'), async () => {
+    try {
+      await api('POST', '/admin/db/brand/logo', { mimeType: pendingLogo.mimeType, data: pendingLogo.base64 });
+      toast('Logo published. The app shows it the next time it opens.');
+      $('logoFile').value = '';
+      await pickLogo(null);
+      await loadLogo();
+      useLogoFromDatabase();
+    } catch (e) {
+      logoError(e.message);
+    }
+  });
+}
+
+async function restoreLogo(h, button) {
+  const ok = await confirmDialog('Restore this logo?', `Replaced on ${new Date(h.replacedAt).toLocaleString()}. The current logo moves to "Previous logos".`);
+  if (!ok) return;
+  await busy(button, async () => {
+    try {
+      await api('POST', '/admin/db/brand/restore', { historyId: h.id });
+      toast('Logo restored.');
+      await loadLogo();
+      useLogoFromDatabase();
+    } catch (e) {
+      toast(e.message, 'err');
+    }
+  });
 }
 
 // ---------- change log ----------
@@ -245,6 +427,7 @@ async function openTable(name) {
     $('tableTitle').textContent = name;
     $('addRowBtn').disabled = state.table.readOnly;
     switchPanel('tableView');
+    showSkeleton($('grid'), state.table.columns.length);
     await loadRows();
   } catch (e) {
     toast(e.message, 'err');
@@ -287,14 +470,17 @@ function renderTableGrid() {
   }, c.name, el('span', { class: 'type', text: c.type + (c.key === 'PRI' ? ' · PK' : '') }))),
   canEdit ? el('th', { class: 'actions', text: '' }) : null);
 
-  const body = state.rows.map((row) => el('tr', {},
+  const flashKey = state.flashPk;
+  state.flashPk = null;
+  const keyOf = (row) => JSON.stringify(t.primaryKey.map((k) => String(row[k])));
+  const body = state.rows.map((row) => el('tr', { class: flashKey && keyOf(row) === flashKey ? 'flash' : '' },
     t.columns.map((c) => {
       const f = formatCell(row[c.name]);
       return el('td', { class: [f.cls, c.key === 'PRI' ? 'pk' : ''].filter(Boolean).join(' '), title: f.text, text: f.text });
     }),
     canEdit ? el('td', { class: 'actions' },
       el('button', { class: 'row-btn', title: 'Edit', text: '✎', onclick: () => openRowDialog('edit', row) }),
-      el('button', { class: 'row-btn del', title: 'Delete', text: '🗑', onclick: () => deleteRow(row) })) : null));
+      el('button', { class: 'row-btn del', title: 'Delete', text: '🗑', onclick: (e) => deleteRow(row, e.currentTarget) })) : null));
 
   $('grid').replaceChildren(el('thead', {}, head), el('tbody', {}, body));
 }
@@ -364,37 +550,40 @@ async function saveRow(mode, row) {
     $('rowError').textContent = 'Fill in at least one field.';
     return;
   }
-  $('rowSave').disabled = true;
-  try {
-    if (mode === 'edit') {
-      const pk = Object.fromEntries(t.primaryKey.map((k) => [k, row[k]]));
-      await api('PATCH', `/admin/db/tables/${encodeURIComponent(t.name)}/rows`, { pk, values });
-      toast('Row updated');
-    } else {
-      const r = await api('POST', `/admin/db/tables/${encodeURIComponent(t.name)}/rows`, { values });
-      toast(`Row added${r.insertId && r.insertId !== '0' ? ` (id ${r.insertId})` : ''}`);
+  await busy($('rowSave'), async () => {
+    try {
+      if (mode === 'edit') {
+        const pk = Object.fromEntries(t.primaryKey.map((k) => [k, row[k]]));
+        await api('PATCH', `/admin/db/tables/${encodeURIComponent(t.name)}/rows`, { pk, values });
+        state.flashPk = JSON.stringify(t.primaryKey.map((k) => String(row[k])));
+        toast('Row updated');
+      } else {
+        const r = await api('POST', `/admin/db/tables/${encodeURIComponent(t.name)}/rows`, { values });
+        if (t.primaryKey.length === 1 && r.insertId && r.insertId !== '0') state.flashPk = JSON.stringify([r.insertId]);
+        toast(`Row added${r.insertId && r.insertId !== '0' ? ` (id ${r.insertId})` : ''}`);
+      }
+      $('rowDialog').close();
+      await loadRows();
+    } catch (e) {
+      $('rowError').textContent = e.message;
     }
-    $('rowDialog').close();
-    await loadRows();
-  } catch (e) {
-    $('rowError').textContent = e.message;
-  } finally {
-    $('rowSave').disabled = false;
-  }
+  });
 }
 
-async function deleteRow(row) {
+async function deleteRow(row, button) {
   const t = state.table;
   const pk = Object.fromEntries(t.primaryKey.map((k) => [k, row[k]]));
   const ok = await confirmDialog('Delete this row?', `From ${t.name}. This cannot be undone.`, JSON.stringify(pk, null, 2));
   if (!ok) return;
-  try {
-    await api('DELETE', `/admin/db/tables/${encodeURIComponent(t.name)}/rows`, { pk });
-    toast('Row deleted');
-    await loadRows();
-  } catch (e) {
-    toast(e.message, 'err');
-  }
+  await busy(button, async () => {
+    try {
+      await api('DELETE', `/admin/db/tables/${encodeURIComponent(t.name)}/rows`, { pk });
+      toast('Row deleted');
+      await loadRows();
+    } catch (e) {
+      toast(e.message, 'err');
+    }
+  });
 }
 
 function confirmDialog(title, text, code) {
@@ -465,27 +654,35 @@ $('searchInput').addEventListener('input', (e) => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => { state.page.search = e.target.value; state.page.offset = 0; loadRows(); }, 300);
 });
-$('reloadRows').onclick = () => loadRows();
+$('reloadRows').onclick = (e) => busy(e.currentTarget, loadRows);
 $('addRowBtn').onclick = () => openRowDialog('add');
 $('pageSize').onchange = (e) => { state.page.limit = Number(e.target.value); state.page.offset = 0; loadRows(); };
-$('prevPage').onclick = () => { state.page.offset = Math.max(0, state.page.offset - state.page.limit); loadRows(); };
-$('nextPage').onclick = () => { state.page.offset += state.page.limit; loadRows(); };
-$('refreshTables').onclick = () => loadTables();
+$('prevPage').onclick = (e) => { state.page.offset = Math.max(0, state.page.offset - state.page.limit); busy(e.currentTarget, loadRows); };
+$('nextPage').onclick = (e) => { state.page.offset += state.page.limit; busy(e.currentTarget, loadRows); };
+$('refreshTables').onclick = (e) => busy(e.currentTarget, loadTables);
 $('sqlTab').onclick = () => { switchPanel('sqlView'); $('sqlInput').focus(); };
-$('changesTab').onclick = () => { switchPanel('changesView'); loadChanges(); };
-$('reloadChanges').onclick = () => loadChanges();
+$('changesTab').onclick = () => { switchPanel('changesView'); busy($('reloadChanges'), loadChanges); };
+$('reloadChanges').onclick = (e) => busy(e.currentTarget, loadChanges);
+$('logoTab').onclick = () => { switchPanel('logoView'); busy($('reloadLogo'), loadLogo); };
+$('reloadLogo').onclick = (e) => busy(e.currentTarget, loadLogo);
+$('logoFile').onchange = (e) => pickLogo(e.target.files[0]);
+$('logoDrop').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('logoFile').click(); } });
+$('logoDrop').addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('over'); });
+$('logoDrop').addEventListener('dragleave', (e) => e.currentTarget.classList.remove('over'));
+$('logoDrop').addEventListener('drop', (e) => { e.preventDefault(); e.currentTarget.classList.remove('over'); pickLogo(e.dataTransfer.files[0]); });
+$('publishLogo').onclick = publishLogo;
 $('changesSearch').addEventListener('input', renderChanges);
 $('changesType').onchange = renderChanges;
-$('runSql').onclick = runSql;
+$('runSql').onclick = () => busy($('runSql'), runSql);
 $('historySelect').onchange = (e) => { if (e.target.value !== '') $('sqlInput').value = sqlHistory()[Number(e.target.value)]; e.target.value = ''; };
 $('sqlInput').addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runSql(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); busy($('runSql'), runSql); }
   if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '  '); }
 });
 document.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => b.closest('dialog').close(); });
 $('signOutBtn').onclick = () => signOut();
-$('retryBtn').onclick = () => start();
-$('serverPill').onclick = () => start();
+$('retryBtn').onclick = (e) => busy(e.currentTarget, start);
+$('serverPill').onclick = (e) => busy(e.currentTarget, start);
 
 async function start() {
   const online = await discoverServer();
