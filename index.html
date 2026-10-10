@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>PJ Database</title>
+  <link rel="icon" href="icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <div class="bg" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+
+  <header class="topbar glass">
+    <div class="brand"><div class="logo">PJ</div><div><b>PJ Database</b><small id="dbName">pj_app</small></div></div>
+    <div class="topbar-right">
+      <button id="serverPill" class="pill" title="Server status">
+        <i class="dot"></i><span id="serverText">Finding server…</span>
+      </button>
+      <div id="adminBox" class="admin hidden">
+        <img id="adminPic" alt="">
+        <span id="adminEmail"></span>
+        <button id="signOutBtn" class="btn ghost small">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sign in -->
+  <main id="loginView" class="center hidden">
+    <section class="glass card login">
+      <div class="logo big">PJ</div>
+      <h1>Database admin</h1>
+      <p class="muted">Sign in with your admin Google account.</p>
+      <div id="googleBtn"></div>
+      <p id="loginError" class="error"></p>
+    </section>
+  </main>
+
+  <!-- Server offline -->
+  <main id="offlineView" class="center hidden">
+    <section class="glass card login">
+      <div class="logo big dim">PJ</div>
+      <h1>Server is offline</h1>
+      <p class="muted">Start it on the laptop: double-click<br><code>dev-tools\start-pj-server.cmd</code></p>
+      <button id="retryBtn" class="btn primary">Try again</button>
+    </section>
+  </main>
+
+  <!-- App -->
+  <main id="appView" class="layout hidden">
+    <aside class="glass sidebar">
+      <button id="sqlTab" class="nav-item sql"><span>⌘</span> SQL editor</button>
+      <button id="changesTab" class="nav-item changes"><span>🕘</span> Changes</button>
+      <div class="nav-title">Tables <button id="refreshTables" class="icon-btn" title="Refresh">↻</button></div>
+      <nav id="tableList"></nav>
+    </aside>
+
+    <section id="tableView" class="glass panel hidden">
+      <div class="panel-head">
+        <div>
+          <h2 id="tableTitle"></h2>
+          <small id="tableMeta" class="muted"></small>
+        </div>
+        <div class="toolbar">
+          <input id="searchInput" type="search" placeholder="Search all columns…">
+          <button id="reloadRows" class="btn ghost" title="Reload">↻</button>
+          <button id="addRowBtn" class="btn primary">+ Add row</button>
+        </div>
+      </div>
+      <div class="grid-wrap"><table id="grid" class="grid"></table></div>
+      <div class="pager">
+        <span id="pageInfo" class="muted"></span>
+        <div>
+          <select id="pageSize"><option>25</option><option selected>50</option><option>100</option><option>200</option></select>
+          <button id="prevPage" class="btn ghost small">‹ Prev</button>
+          <button id="nextPage" class="btn ghost small">Next ›</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="sqlView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>SQL editor</h2><small class="muted">One statement at a time · Ctrl+Enter to run · changes ask for confirmation</small></div>
+        <div class="toolbar">
+          <select id="historySelect"><option value="">History…</option></select>
+          <button id="runSql" class="btn primary">▶ Run</button>
+        </div>
+      </div>
+      <textarea id="sqlInput" spellcheck="false" placeholder="SELECT * FROM users ORDER BY last_login_at DESC LIMIT 20;"></textarea>
+      <div id="sqlStatus" class="muted sql-status"></div>
+      <div class="grid-wrap"><table id="sqlGrid" class="grid"></table></div>
+    </section>
+
+    <section id="changesView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>Changes</h2><small id="runningVersion" class="muted"></small></div>
+        <div class="toolbar">
+          <input id="changesSearch" type="search" placeholder="Filter changes…">
+          <select id="changesType"><option value="">All types</option></select>
+          <button id="reloadChanges" class="btn ghost" title="Reload">↻</button>
+        </div>
+      </div>
+      <ol id="changesList" class="timeline"></ol>
+    </section>
+
+    <section id="emptyView" class="glass panel center-content">
+      <div class="logo big">PJ</div>
+      <h2>Pick a table</h2>
+      <p class="muted">Browse, add, edit and delete rows, or open the SQL editor for longer queries.</p>
+    </section>
+  </main>
+
+  <!-- Row editor / confirm dialogs -->
+  <dialog id="rowDialog" class="glass dialog">
+    <form id="rowForm" method="dialog">
+      <h3 id="rowDialogTitle"></h3>
+      <div id="rowFields" class="fields"></div>
+      <p id="rowError" class="error"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn primary" id="rowSave">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirmDialog" class="glass dialog narrow">
+    <h3 id="confirmTitle"></h3>
+    <p id="confirmText" class="muted"></p>
+    <pre id="confirmCode" class="hidden"></pre>
+    <div class="dialog-actions">
+      <button type="button" class="btn ghost" data-close>Cancel</button>
+      <button type="button" class="btn danger" id="confirmOk">Confirm</button>
+    </div>
+  </dialog>
+
+  <div id="toasts"></div>
+  <script src="app.js"></script>
+</body>
+</html>
