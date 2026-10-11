@@ -6,10 +6,11 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="referrer" content="no-referrer">
   <meta name="author" content="Prasidha Jagtap">
-  <!-- Only this site, Google Sign-In, the GitHub API (server discovery) and the PJ server may be used. -->
+  <!-- Only this site, Google Sign-In, the GitHub API (server discovery) and the PJ server may be used.
+       style-src allows inline styles because Google's sign-in button injects its own; scripts stay strict. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self';
     script-src 'self' https://accounts.google.com/gsi/client;
-    style-src 'self' https://accounts.google.com/gsi/style;
+    style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style;
     frame-src https://accounts.google.com/gsi/;
     connect-src 'self' https://accounts.google.com/gsi/ https://api.github.com https://*.trycloudflare.com http://localhost:3000;
     img-src 'self' data: blob: https://*.googleusercontent.com https://*.trycloudflare.com http://localhost:3000;

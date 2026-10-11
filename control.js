@@ -39,17 +39,8 @@ function duration(seconds) {
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 }
 
-const FRIENDLY = {
-  read_only_admin: 'Your admin role is view-only.',
-  owner_only: 'Only owners can do that.',
-  reason_required: 'Please give a reason.',
-  confirm_email_mismatch: "The email you typed doesn't match this user.",
-  build_not_on_server: 'That build is no longer on the server.',
-  cannot_demote_yourself: "You can't change your own role.",
-  cannot_remove_yourself: "You can't remove yourself.",
-  title_and_body_required: 'Add a title and a message.',
-};
-const explain = (e) => FRIENDLY[e.code] ?? e.message;
+// Error texts and PJ codes come from ADMIN_ERRORS in app.js (via ApiError).
+const explain = (e) => e.message;
 
 const REASONS = {
   user_disconnected: 'Player tapped Disconnect',
@@ -422,7 +413,7 @@ async function loadAnnouncements() {
   const level = el('select', {}, el('option', { value: 'info', text: 'Info' }), el('option', { value: 'important', text: 'Important' }));
   const ends = el('select', {}, [['', 'Until I end it'], ['24', 'For 24 hours'], ['72', 'For 3 days'], ['168', 'For 7 days']].map(([v, t]) => el('option', { value: v, text: t })));
   const publish = el('button', { class: 'btn primary', text: 'Publish', onclick: async (e) => {
-    if (!title.value.trim() || !body.value.trim()) return toast('Add a title and a message.', 'err');
+    if (!title.value.trim() || !body.value.trim()) return toast(adminErrorText('title_and_body_required'), 'err');
     if (!(await confirmDialog('Publish to everyone?', `"${title.value.trim()}" appears in every user's app${push ? ' and is sent as a push notification' : ''}.`))) return;
     const r = await act(e.currentTarget, () => api('POST', '/admin/db/announcements', {
       title: title.value, body: body.value, level: level.value, hours: ends.value ? Number(ends.value) : null,
@@ -502,7 +493,7 @@ async function loadSecurity() {
       ], admins),
       can.own() ? el('div', { class: 'filters' }, email, role, el('button', { class: 'btn primary small', text: 'Add admin', onclick: async (e) => {
         const value = email.value.trim().toLowerCase();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return toast('Enter a valid email address.', 'err');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return toast(adminErrorText('invalid_admin'), 'err');
         const r = await act(e.currentTarget, () => api('PUT', `/admin/db/admins/${encodeURIComponent(value)}`, { role: role.value }), `${value} added as ${role.value}`);
         if (r) loadSecurity().catch(() => {});
       } })) : null,
