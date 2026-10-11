@@ -12,7 +12,7 @@
 <body class="doc">
   <div class="bg" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
   <main class="glass doc-card">
-    <div class="brand"><img src="icon.png" alt="PJ logo" class="logo-img"><div><b>PJ Privacy Notice</b><small>Version 2026-10-11</small></div></div>
+    <div class="brand"><img src="icon.png" alt="PJ logo" class="logo-img"><div><b>PJ Privacy Notice</b><small>Version 2026-10-11.2</small></div></div>
 
     <h2>Who we are</h2>
     <p>PJ is an app developed and operated by <b>Prasidha Jagtap</b>, the data controller.
@@ -26,12 +26,28 @@
       <li>the privacy notice version you accepted and when;</li>
       <li>when your account was created and when you last signed in.</li>
     </ul>
+    <p>When you use friends and Bluetooth play, we also store:</p>
+    <ul>
+      <li>your friends and friend requests (who asked whom, and when);</li>
+      <li>nudges you send and receive, and when they were delivered;</li>
+      <li>games you host or are invited to, and whether you joined;</li>
+      <li>for each Bluetooth game session: a random session ID, your phone model, Android version, app build,
+        and a technical log of the connection (for example: found the host, connected, verified, disconnected,
+        Bluetooth turned off, and game results).</li>
+    </ul>
+    <p>Whether you are online is kept only in the server's memory for about 30 seconds and is never stored.
+      On the <b>Add user</b> screen your phone shows your first name to nearby phones over Bluetooth, with a random
+      code that changes every few minutes; only signed-in PJ users can turn that code into your name and photo.
+      Android asks for the "Nearby devices" (and, on Android 12 and older, location) permission to find nearby
+      phones. PJ never reads or stores your location.</p>
     <p>We do not use advertising, analytics or tracking, and we do not sell or share your data for marketing.</p>
 
     <h2>Why, and on what legal basis</h2>
     <ul>
       <li><b>To provide the app</b>: sign you in and show your name and photo. Basis: performance of a contract (GDPR Art. 6(1)(b)).</li>
-      <li><b>To keep it secure</b>: rate limiting and an audit log of administrator actions (which includes administrators' IP addresses). Basis: legitimate interests (Art. 6(1)(f)).</li>
+      <li><b>Friends, nudges and games</b>: let you find friends nearby, nudge them and play together. Basis: performance of a contract (Art. 6(1)(b)).</li>
+      <li><b>To keep it secure</b>: rate limiting, verifying that only invited friends join a game, and an audit log of administrator actions (which includes administrators' IP addresses). Basis: legitimate interests (Art. 6(1)(f)).</li>
+      <li><b>Troubleshooting</b>: the Bluetooth session log helps fix connection problems. Basis: legitimate interests (Art. 6(1)(f)).</li>
     </ul>
 
     <h2>Who processes it</h2>
@@ -45,6 +61,9 @@
     <h2>How long we keep it</h2>
     <ul>
       <li>Account data: until you delete your account.</li>
+      <li>Friends: until you or your friend removes the friendship, or one of you deletes the account.</li>
+      <li>Nudges: 7 days.</li>
+      <li>Games and Bluetooth session logs: 30 days.</li>
       <li>Administrator audit log: 365 days, then automatically deleted.</li>
     </ul>
 
@@ -58,7 +77,9 @@
     <p>You may also complain to your data protection supervisory authority.</p>
 
     <h2>Security</h2>
-    <p>All traffic is encrypted (HTTPS). Sign-in tokens are verified with Google, sessions are signed and expire,
+    <p>All traffic is encrypted (HTTPS). Bluetooth game connections are encrypted, and both phones prove they belong
+      to invited players before any game data is exchanged; every game message is signed.
+      Sign-in tokens are verified with Google, sessions are signed and expire,
       the app keeps its session in encrypted device storage, and database access is limited and audited.</p>
 
     <h2>Changes</h2>
