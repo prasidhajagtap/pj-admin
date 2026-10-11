@@ -99,9 +99,40 @@ function formatCell(v) {
   return { text: String(v) };
 }
 
+// Every admin error carries a PJ code; pj_app/docs/ERROR_CODES.md explains each one and how to fix it.
+const ADMIN_ERRORS = {
+  read_only_admin: ['PJ-8001', 'Your admin role is view-only.'],
+  owner_only: ['PJ-8002', 'Only owners can do that.'],
+  reason_required: ['PJ-8003', 'Please give a reason.'],
+  confirm_email_mismatch: ['PJ-8004', "The email you typed doesn't match this user."],
+  build_not_on_server: ['PJ-8005', 'That build is no longer on the server.'],
+  cannot_demote_yourself: ['PJ-8006', "You can't change your own role."],
+  cannot_remove_yourself: ['PJ-8007', "You can't remove yourself."],
+  title_and_body_required: ['PJ-8008', 'Add a title and a message.'],
+  not_an_admin: ['PJ-8009', 'This Google account is not an admin.'],
+  admin_session_expired: ['PJ-8010', 'Your session expired. Please sign in again.'],
+  unreachable: ['PJ-8011', "Can't reach the server. Is it running?"],
+  invalid_setting: ['PJ-8012', null],
+  sql_error: ['PJ-8013', null],
+  confirm_write_required: ['PJ-8014', 'Changing data needs confirmation.'],
+  invalid_logo: ['PJ-8015', null],
+  table_is_read_only: ['PJ-8016', 'That table is read-only here.'],
+  invalid_values: ['PJ-8017', 'Those values are not valid for this table.'],
+  missing_primary_key: ['PJ-8017', 'That row could not be identified.'],
+  too_many_requests: ['PJ-8018', 'Too many attempts. Wait a few minutes.'],
+  invalid_admin: ['PJ-8019', 'Enter a valid email and role.'],
+};
+
+/** "Message (PJ-80xx)" for a server error key; unknown keys keep the key visible. */
+function adminErrorText(key, serverMessage) {
+  const [code, text] = ADMIN_ERRORS[key] ?? ['PJ-8099', null];
+  const message = text ?? serverMessage ?? `Something went wrong (${key ?? 'unknown'})`;
+  return `${message} (${code})`;
+}
+
 class ApiError extends Error {
   constructor(status, body) {
-    super(body?.message || body?.error || `HTTP ${status}`);
+    super(adminErrorText(body?.error ?? (status === 0 ? 'unreachable' : `http_${status}`), body?.message));
     this.status = status;
     this.code = body?.error;
   }
@@ -117,7 +148,7 @@ async function api(method, path, body) {
     });
   } catch {
     setServerPill('offline', 'Server unreachable');
-    throw new ApiError(0, { message: "Can't reach the server. Is it running?" });
+    throw new ApiError(0, { error: 'unreachable' });
   }
   const data = await res.json().catch(() => null);
   if (res.status === 401 && path.startsWith('/admin/db')) {
@@ -185,9 +216,7 @@ async function onGoogleCredential({ credential }) {
     store.set('pj_admin', JSON.stringify(data.admin));
     enterApp();
   } catch (e) {
-    $('loginError').textContent = e.code === 'not_an_admin'
-      ? 'This Google account is not an admin.'
-      : `Sign-in failed: ${e.message}`;
+    $('loginError').textContent = e.code === 'not_an_admin' ? e.message : `Sign-in failed: ${e.message}`;
   }
 }
 
@@ -328,9 +357,9 @@ async function pickLogo(file) {
 
   const type = LOGO_TYPES[file.type] ? file.type
     : /\.svg$/i.test(file.name) ? 'image/svg+xml' : /\.png$/i.test(file.name) ? 'image/png' : '';
-  if (!type) return logoError('Choose a PNG or SVG file.');
+  if (!type) return logoError('Choose a PNG or SVG file. (PJ-8015)');
   if (file.size > (type === 'image/png' ? 1024 * 1024 : 512 * 1024)) {
-    return logoError(`This file is too large (max ${type === 'image/png' ? '1 MB' : '512 KB'}).`);
+    return logoError(`This file is too large (max ${type === 'image/png' ? '1 MB' : '512 KB'}). (PJ-8015)`);
   }
   const url = URL.createObjectURL(file);
   objectUrls.push(url);
@@ -338,12 +367,12 @@ async function pickLogo(file) {
   try {
     img = await loadImage(url);
   } catch {
-    return logoError('This image could not be read.');
+    return logoError('This image could not be read. (PJ-8015)');
   }
   if (type === 'image/png') {
     const { naturalWidth: w, naturalHeight: h } = img;
-    if (w < 64 || h < 64 || w > 4096 || h > 4096) return logoError('PNG must be between 64 and 4096 pixels on each side.');
-    if (!hasTransparency(img)) return logoError('This PNG has no transparent background. Export it with transparency (alpha channel) and try again.');
+    if (w < 64 || h < 64 || w > 4096 || h > 4096) return logoError('PNG must be between 64 and 4096 pixels on each side. (PJ-8015)');
+    if (!hasTransparency(img)) return logoError('This PNG has no transparent background. Export it with transparency (alpha channel) and try again. (PJ-8015)');
   }
   pendingLogo = { mimeType: type, base64: await toBase64(file) };
   $('newLogoLight').src = url;
@@ -552,7 +581,7 @@ async function saveRow(mode, row) {
   const values = collectValues(mode);
   if (!Object.keys(values).length) {
     if (mode === 'edit') { $('rowDialog').close(); return; }
-    $('rowError').textContent = 'Fill in at least one field.';
+    $('rowError').textContent = 'Fill in at least one field. (PJ-8017)';
     return;
   }
   await busy($('rowSave'), async () => {
