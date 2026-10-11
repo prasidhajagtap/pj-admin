@@ -14,7 +14,7 @@
     connect-src 'self' https://accounts.google.com/gsi/ https://api.github.com https://*.trycloudflare.com http://localhost:3000;
     img-src 'self' data: blob: https://*.googleusercontent.com https://*.trycloudflare.com http://localhost:3000;
     object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>PJ Database</title>
+  <title>PJ Admin</title>
   <link rel="icon" id="favicon" href="icon.png">
   <link rel="stylesheet" href="styles.css">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -23,7 +23,7 @@
   <div class="bg" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
 
   <header class="topbar glass">
-    <div class="brand"><img id="brandLogo" class="logo-img brand-img" src="icon.png" alt="PJ logo"><div><b>PJ Database</b><small id="dbName">pj_app</small></div></div>
+    <div class="brand"><img id="brandLogo" class="logo-img brand-img" src="icon.png" alt="PJ logo"><div><b>PJ Admin</b><small id="dbName">pj_app</small></div></div>
     <div class="topbar-right">
       <button id="serverPill" class="pill" title="Server status">
         <i class="dot"></i><span id="serverText">Finding server…</span>
@@ -60,9 +60,18 @@
   <!-- App -->
   <main id="appView" class="layout hidden">
     <aside class="glass sidebar">
-      <button id="sqlTab" class="nav-item sql"><span>⌘</span> SQL editor</button>
-      <button id="changesTab" class="nav-item changes"><span>🕘</span> Changes</button>
-      <button id="logoTab" class="nav-item logo-nav"><span>🎨</span> App logo</button>
+      <div class="nav-title first">Control</div>
+      <button class="nav-item control" data-panel="playView" data-load="play"><span>📡 Play &amp; Bluetooth</span><small id="playBadge"></small></button>
+      <button class="nav-item control" data-panel="usersView" data-load="users"><span>👤 Users</span></button>
+      <button class="nav-item control" data-panel="settingsView" data-load="settings"><span>🎛 App settings</span></button>
+      <button class="nav-item control" data-panel="announceView" data-load="announcements"><span>📣 Announcements</span></button>
+      <button class="nav-item control" data-panel="releasesView" data-load="releases"><span>📦 Releases</span></button>
+      <button class="nav-item control" data-panel="securityView" data-load="security"><span>🛡 Security &amp; admins</span></button>
+      <button class="nav-item control" data-panel="serverView" data-load="server"><span>🖥 Server</span></button>
+      <div class="nav-title">Data</div>
+      <button id="sqlTab" class="nav-item sql" data-panel="sqlView"><span>⌘</span> SQL editor</button>
+      <button id="changesTab" class="nav-item changes" data-panel="changesView"><span>🕘</span> Changes</button>
+      <button id="logoTab" class="nav-item logo-nav" data-panel="logoView"><span>🎨</span> App logo</button>
       <div class="nav-title">Tables <button id="refreshTables" class="icon-btn" title="Refresh">↻</button></div>
       <nav id="tableList"></nav>
     </aside>
@@ -152,10 +161,66 @@
       <div id="logoHistory" class="logo-history"></div>
     </section>
 
+    <section id="playView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>Play &amp; Bluetooth</h2><small class="muted">Live lobbies, Bluetooth sessions with their step-by-step logs, and spoofing alerts</small></div>
+        <div class="toolbar"><button class="btn ghost" data-reload="play" title="Reload">↻</button></div>
+      </div>
+      <div class="scroll" id="playBody"></div>
+    </section>
+
+    <section id="usersView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>Users</h2><small class="muted">Find a user, see their friends and games, suspend, sign out everywhere, export or erase</small></div>
+        <div class="toolbar"><input id="userSearch" type="search" placeholder="Name or email…"><label class="check"><input id="userSuspendedOnly" type="checkbox"> Suspended only</label><button class="btn ghost" data-reload="users" title="Reload">↻</button></div>
+      </div>
+      <div class="scroll" id="usersBody"></div>
+    </section>
+
+    <section id="settingsView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>App settings</h2><small class="muted">Changes reach every phone within seconds, without a new build</small></div>
+        <div class="toolbar"><button class="btn ghost" data-reload="settings" title="Reload">↻</button></div>
+      </div>
+      <div class="scroll" id="settingsBody"></div>
+    </section>
+
+    <section id="announceView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>Announcements</h2><small class="muted">Shown once in everyone&#39;s app, and sent as a push notification when push is set up</small></div>
+        <div class="toolbar"><button class="btn ghost" data-reload="announcements" title="Reload">↻</button></div>
+      </div>
+      <div class="scroll" id="announceBody"></div>
+    </section>
+
+    <section id="releasesView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>Releases</h2><small class="muted">Which build phones are offered, and which build each user runs</small></div>
+        <div class="toolbar"><button class="btn ghost" data-reload="releases" title="Reload">↻</button></div>
+      </div>
+      <div class="scroll" id="releasesBody"></div>
+    </section>
+
+    <section id="securityView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>Security &amp; admins</h2><small class="muted">Blocked requests, failed admin sign-ins, admin activity and who can use this panel</small></div>
+        <div class="toolbar"><button class="btn ghost" data-reload="security" title="Reload">↻</button></div>
+      </div>
+      <div class="scroll" id="securityBody"></div>
+    </section>
+
+    <section id="serverView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>Server</h2><small class="muted">Health of the laptop server, database and background jobs</small></div>
+        <div class="toolbar"><button class="btn ghost" data-reload="server" title="Reload">↻</button></div>
+      </div>
+      <div class="scroll" id="serverBody"></div>
+    </section>
+
     <section id="emptyView" class="glass panel center-content">
       <img class="logo-img big brand-img" src="icon.png" alt="PJ logo">
-      <h2>Pick a table</h2>
-      <p class="muted">Browse, add, edit and delete rows, or open the SQL editor for longer queries.</p>
+      <h2>PJ control centre</h2>
+      <p class="muted">Pick a screen on the left: play and Bluetooth, users, app settings, announcements, releases, security and server, or browse the database tables.</p>
     </section>
   </main>
 
@@ -182,9 +247,26 @@
     </div>
   </dialog>
 
+  <dialog id="infoDialog" class="glass dialog wide">
+    <div id="infoContent"></div>
+    <div class="dialog-actions"><button type="button" class="btn ghost" data-close>Close</button></div>
+  </dialog>
+
+  <dialog id="promptDialog" class="glass dialog narrow">
+    <h3 id="promptTitle"></h3>
+    <p id="promptText" class="muted"></p>
+    <input id="promptInput" type="text" autocomplete="off">
+    <p id="promptError" class="error"></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn ghost" data-close>Cancel</button>
+      <button type="button" class="btn danger" id="promptOk">Confirm</button>
+    </div>
+  </dialog>
+
   <footer class="credits">© 2026 Prasidha Jagtap · Developed by Prasidha Jagtap · <a href="privacy.html">Privacy</a></footer>
 
   <div id="toasts"></div>
   <script src="app.js"></script>
+  <script src="control.js"></script>
 </body>
 </html>
