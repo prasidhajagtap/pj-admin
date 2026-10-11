@@ -203,7 +203,14 @@ function signOut(message) {
 }
 
 async function enterApp() {
-  $('adminEmail').textContent = state.admin?.email ?? '';
+  try {
+    const { admin } = await api('GET', '/admin/db/me');
+    state.admin = { ...state.admin, ...admin };
+    store.set('pj_admin', JSON.stringify(state.admin));
+  } catch { /* older server without roles */ }
+  // Viewers see no change buttons (the server refuses changes anyway).
+  document.body.dataset.role = state.admin?.role ?? 'owner';
+  $('adminEmail').textContent = `${state.admin?.email ?? ''}${state.admin?.role ? ` · ${state.admin.role}` : ''}`;
   $('adminPic').src = state.admin?.picture || 'icon.png';
   show('appView');
   await loadTables();
@@ -230,10 +237,8 @@ function renderTableList() {
 }
 
 function switchPanel(panel) {
-  for (const p of ['tableView', 'sqlView', 'changesView', 'logoView', 'emptyView']) $(p).classList.toggle('hidden', p !== panel);
-  $('sqlTab').classList.toggle('active', panel === 'sqlView');
-  $('changesTab').classList.toggle('active', panel === 'changesView');
-  $('logoTab').classList.toggle('active', panel === 'logoView');
+  document.querySelectorAll('#appView > section.panel').forEach((p) => p.classList.toggle('hidden', p.id !== panel));
+  document.querySelectorAll('.sidebar [data-panel]').forEach((t) => t.classList.toggle('active', t.dataset.panel === panel));
   renderTableList();
 }
 

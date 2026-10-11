@@ -12,7 +12,7 @@
 <body class="doc">
   <div class="bg" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
   <main class="glass doc-card">
-    <div class="brand"><img src="icon.png" alt="PJ logo" class="logo-img"><div><b>PJ Privacy Notice</b><small>Version 2026-10-11.2</small></div></div>
+    <div class="brand"><img src="icon.png" alt="PJ logo" class="logo-img"><div><b>PJ Privacy Notice</b><small>Version 2026-10-11.3</small></div></div>
 
     <h2>Who we are</h2>
     <p>PJ is an app developed and operated by <b>Prasidha Jagtap</b>, the data controller.
@@ -24,7 +24,9 @@
       <li>your Google account ID, email address and whether it is verified;</li>
       <li>your name, first name and profile photo link;</li>
       <li>the privacy notice version you accepted and when;</li>
-      <li>when your account was created and when you last signed in.</li>
+      <li>when your account was created and when you last signed in;</li>
+      <li>which version (build) of the app you last used, so we can tell you when an update is required;</li>
+      <li>if an administrator suspends your account, when and why.</li>
     </ul>
     <p>When you use friends and Bluetooth play, we also store:</p>
     <ul>
@@ -33,7 +35,9 @@
       <li>games you host or are invited to, and whether you joined;</li>
       <li>for each Bluetooth game session: a random session ID, your phone model, Android version, app build,
         and a technical log of the connection (for example: found the host, connected, verified, disconnected,
-        Bluetooth turned off, and game results).</li>
+        Bluetooth turned off, and game results);</li>
+      <li>if you allow notifications: a push notification token for each phone you are signed in on, so nudges,
+        game invites and announcements reach you when PJ is closed. It is deleted when you sign out.</li>
     </ul>
     <p>Whether you are online is kept only in the server's memory for about 30 seconds and is never stored.
       On the <b>Add user</b> screen your phone shows your first name to nearby phones over Bluetooth, with a random
@@ -52,7 +56,8 @@
 
     <h2>Who processes it</h2>
     <ul>
-      <li><b>Google</b>: provides the sign-in.</li>
+      <li><b>Google</b>: provides the sign-in, and Firebase Cloud Messaging delivers push notifications
+        (it receives the notification text and your phone's push token).</li>
       <li><b>Cloudflare</b>: carries encrypted traffic between the app and the PJ server.</li>
       <li><b>GitHub</b>: hosts this page and the admin page; it receives no user data from the app.</li>
     </ul>
@@ -63,6 +68,7 @@
       <li>Account data: until you delete your account.</li>
       <li>Friends: until you or your friend removes the friendship, or one of you deletes the account.</li>
       <li>Nudges: 7 days.</li>
+      <li>Push notification tokens: until you sign out or Firebase reports the token as no longer valid.</li>
       <li>Games and Bluetooth session logs: 30 days.</li>
       <li>Administrator audit log: 365 days, then automatically deleted.</li>
     </ul>
