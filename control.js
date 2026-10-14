@@ -1,11 +1,7 @@
-// PJ Admin control centre: play & Bluetooth, users, app settings, announcements, releases,
-// security & admins, and server health. Builds on the helpers in app.js (el, api, busy, toast, ...).
+// Asteriq Admin control centre: users (with their astrology profile and activity), app settings,
+// announcements, releases, security and server health. Only the owner's email (ADMIN_EMAILS on the
+// server) can sign in, so every screen shows every action. Builds on the helpers in app.js (el, api, busy, toast, ...).
 'use strict';
-
-const can = {
-  edit: () => state.admin?.role !== 'viewer',
-  own: () => (state.admin?.role ?? 'owner') === 'owner',
-};
 
 // ---------- formatting ----------
 /** Server times are UTC ("2026-10-11 07:05:25.123" or ISO); shown in the browser's local time. */
@@ -39,40 +35,16 @@ function duration(seconds) {
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 }
 
-// Error texts and PJ codes come from ADMIN_ERRORS in app.js (via ApiError).
+// Error texts and AQ codes come from ADMIN_ERRORS in app.js (via ApiError).
 const explain = (e) => e.message;
-
-const REASONS = {
-  user_disconnected: 'Player tapped Disconnect',
-  bluetooth_off: 'Bluetooth turned off',
-  connection_lost: 'Link dropped',
-  handshake_failed: "Couldn't verify the other phone",
-  host_left: 'Host ended the game',
-  lobby_closed: 'Lobby closed',
-  left_lobby: 'Left the lobby',
-  superseded: 'Replaced by a new session',
-  abandoned: 'App vanished (closed after 3 h)',
-  permission_denied: 'Permission denied',
-  server_unreachable: 'Server unreachable',
-  radio_error: 'Bluetooth error',
-  closed_by_admin: 'Closed from the admin panel',
-  account_suspended: 'Account suspended',
-};
-const reasonText = (r) => REASONS[r] ?? r ?? '—';
-
-const EVENT_KIND = {
-  spoof_rejected: 'bad', host_rejected: 'bad', bluetooth_off: 'bad', message_rejected: 'warn', peer_dropped: 'warn',
-  permissions_problem: 'warn', send_failed: 'warn', connection_rejected: 'warn', disconnected: 'warn', peer_disconnected: 'warn',
-  handshake_ok: 'ok', connected: 'ok', game_started: 'ok', round_finished: 'ok', session_started: 'info', session_ended: 'info',
-  server_opened: 'info', server_closed: 'info',
-};
 
 const LIMITERS = {
   global: 'All requests', login: 'App sign-in', 'admin-login': 'Admin sign-in', 'admin-sql': 'SQL editor', erase: 'Account deletion',
-  'friend-request': 'Friend requests', nudge: 'Nudges', 'game-create': 'New games', 'bt-session': 'Bluetooth sessions',
-  'bt-events': 'Bluetooth logs', 'discovery-tag': 'Nearby tags', 'discovery-lookup': 'Nearby lookups', apk: 'APK downloads',
-  'push-token': 'Push registrations', logo: 'Logo uploads',
+  astro: 'Astrology (quiz, readings, forecast)', apk: 'APK downloads', 'push-token': 'Push registrations', 'logo-upload': 'Logo uploads',
 };
+
+const COHORTS = { genz: 'Gen Z', nineties: '90s-born', general: 'Other' };
+const GENDERS = { female: 'Woman', male: 'Man', unspecified: 'Not said' };
 
 // ---------- small building blocks ----------
 const chip = (text, kind = '') => el('span', { class: `chip ${kind}`, text });
@@ -160,112 +132,11 @@ async function act(button, task, success) {
   });
 }
 
-// ---------- Play & Bluetooth ----------
-const playFilter = { status: '', reason: '', user: '' };
-
-async function loadPlay() {
-  const query = new URLSearchParams(Object.entries(playFilter).filter(([, v]) => v));
-  const [o, lobbies, sessions] = await Promise.all([
-    api('GET', '/admin/db/play/overview'),
-    api('GET', '/admin/db/play/lobbies'),
-    api('GET', `/admin/db/play/sessions?${query}`),
-  ]);
-  const c = o.counts;
-  $('playBadge').textContent = c.activeSessions ? `${c.activeSessions} live` : '';
-
-  const statusSel = el('select', { 'aria-label': 'Status' },
-    [['', 'Any status'], ['active', 'Active'], ['ended', 'Ended'], ['failed', 'Failed']].map(([v, t]) => el('option', { value: v, text: t, selected: playFilter.status === v })));
-  const reasonSel = el('select', { 'aria-label': 'End reason' },
-    el('option', { value: '', text: 'Any reason' }),
-    Object.entries(REASONS).map(([v, t]) => el('option', { value: v, text: t, selected: playFilter.reason === v })));
-  const userInput = el('input', { type: 'search', placeholder: 'Player name or email…', value: playFilter.user });
-  const apply = el('button', { class: 'btn small primary', text: 'Filter', onclick: (e) => {
-    Object.assign(playFilter, { status: statusSel.value, reason: reasonSel.value, user: userInput.value.trim() });
-    busy(e.currentTarget, loadPlay);
-  } });
-
-  $('playBody').replaceChildren(
-    el('div', { class: 'stats' },
-      stat('Live lobbies', c.openLobbies),
-      stat('Active Bluetooth sessions', c.activeSessions, c.activeSessions ? 'ok' : ''),
-      stat('Games (24 h)', c.games24h),
-      stat('Nudges (24 h)', c.nudges24h),
-      stat('Friendships', c.friendships),
-      stat('Spoof attempts (24 h)', c.spoof24h, c.spoof24h ? 'bad' : '', `${c.spoof7d} in 7 days`)),
-    el('div', { class: 'two-col' },
-      block('Sessions in the last 24 hours', o.last24hByStatus.length
-        ? el('div', { class: 'chips' }, o.last24hByStatus.map((s) => chip(`${s.status}: ${s.n}`, s.status === 'failed' ? 'bad' : s.status === 'active' ? 'ok' : '')))
-        : empty('No Bluetooth sessions yet.')),
-      block('Why sessions ended (7 days)', bars(o.endReasons7d.map((r) => ({ label: reasonText(r.reason), value: r.n, kind: ['user_disconnected', 'host_left', 'lobby_closed'].includes(r.reason) ? '' : 'warn' }))))),
-    block('Alerts (7 days)', table([
-      { label: 'When', cell: (a) => ago(a.at) },
-      { label: 'What', cell: (a) => chip(a.type.replace(/_/g, ' '), EVENT_KIND[a.type] ?? 'warn') },
-      { label: 'Reported by', cell: (a) => a.userName ?? '—' },
-      { label: 'Other phone', cell: (a) => a.peerName ?? 'unknown device' },
-      { label: 'Details', cell: (a) => [a.detail?.why, a.detail?.reason].filter(Boolean).join(' · ') || '—' },
-    ], o.alerts, { onRow: (a) => openSession(a.sessionId), emptyText: 'No spoofing attempts or misbehaving phones. 👍' })),
-    block('Live lobbies', table([
-      { label: 'Lobby', cell: (l) => l.code },
-      { label: 'Host', cell: (l) => l.hostName ?? '—' },
-      { label: 'Players', cell: (l) => el('div', { class: 'chips' }, l.players.map((p) => chip(`${p.name ?? 'Player'} · ${p.status}`, p.status === 'accepted' ? 'ok' : p.status === 'declined' ? 'bad' : ''))) },
-      { label: 'Phones connected', cell: (l) => String(l.activeSessions) },
-      { label: 'Opened', cell: (l) => ago(l.createdAt) },
-      { label: '', cell: (l) => (can.edit() ? el('button', { class: 'btn small danger', text: 'Close', onclick: (e) => { e.stopPropagation(); closeLobby(l, e.currentTarget); } }) : '') },
-    ], lobbies.lobbies, { emptyText: 'No open lobbies right now.' })),
-    block('Bluetooth sessions',
-      el('div', { class: 'filters' }, statusSel, reasonSel, userInput, apply),
-      table([
-        { label: 'Started', cell: (s) => when(s.startedAt) },
-        { label: 'Player', cell: (s) => s.userName ?? s.userEmail },
-        { label: 'Role', cell: (s) => s.role },
-        { label: 'Phone', cell: (s) => [s.deviceModel, s.androidSdk && `Android SDK ${s.androidSdk}`, s.appBuild && `build ${s.appBuild}`].filter(Boolean).join(' · ') || '—' },
-        { label: 'Status', cell: (s) => chip(s.status, s.status === 'failed' ? 'bad' : s.status === 'active' ? 'ok' : '') },
-        { label: 'Ended because', cell: (s) => (s.endReason ? reasonText(s.endReason) : '—') },
-        { label: 'Length', cell: (s) => duration(s.seconds) },
-        { label: 'Log', cell: (s) => `${s.events} steps` },
-      ], sessions.sessions, { onRow: (s) => openSession(s.id), emptyText: 'No sessions match.' })),
-  );
-}
-
-async function closeLobby(lobby, button) {
-  if (!(await confirmDialog(`Close lobby ${lobby.code}?`, `${lobby.hostName ?? 'The host'}'s game ends for every player and their Bluetooth sessions are closed.`))) return;
-  await act(button, () => api('POST', `/admin/db/play/lobbies/${lobby.id}/close`), 'Lobby closed');
-  loadPlay().catch(() => {});
-}
-
-async function openSession(id) {
-  let data;
-  try {
-    data = await api('GET', `/admin/db/play/sessions/${id}`);
-  } catch (e) {
-    return toast(explain(e), 'err');
-  }
-  const s = data.session;
-  openInfo(
-    el('div', { class: 'info-head' },
-      el('div', {}, el('h3', { text: `${s.userName ?? s.userEmail} · ${s.role}` }),
-        el('small', { class: 'muted', text: `Lobby ${s.lobbyCode} hosted by ${s.hostName ?? '—'}` })),
-      chip(s.status, s.status === 'failed' ? 'bad' : s.status === 'active' ? 'ok' : '')),
-    el('div', { class: 'facts' },
-      fact('Session ID', el('span', {}, el('code', { text: s.id }), ' ', copyButton(s.id))),
-      fact('Phone', [s.deviceModel, s.androidSdk && `SDK ${s.androidSdk}`, s.appBuild && `build ${s.appBuild}`].filter(Boolean).join(' · ') || '—'),
-      fact('Started', when(s.startedAt, true)),
-      fact('Ended', s.endedAt ? `${when(s.endedAt, true)} · ${reasonText(s.endReason)}` : 'still active')),
-    data.related.length ? el('div', { class: 'related' }, el('span', { class: 'muted', text: 'Other phones in this game:' }),
-      data.related.map((r) => el('button', { class: 'btn ghost small', text: `${r.userName} (${r.role}, ${r.status})`, onclick: () => openSession(r.id) }))) : null,
-    el('h3', { text: `Step-by-step log (${data.events.length})` }),
-    data.events.length ? el('ol', { class: 'events' }, data.events.map((e) => el('li', {},
-      el('span', { class: 'when', text: clock(e.at) }),
-      chip(e.type.replace(/_/g, ' '), EVENT_KIND[e.type] ?? ''),
-      e.peerName ? el('span', { class: 'muted', text: `with ${e.peerName}` }) : null,
-      e.detail ? el('code', { class: 'detail', text: Object.entries(e.detail).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join('  ') }) : null)))
-      : empty('No steps were logged.'),
-  );
-}
-
 const fact = (label, value) => el('div', { class: 'fact' }, el('span', { class: 'muted', text: label }), typeof value === 'string' ? el('b', { text: value }) : value);
 
 // ---------- Users ----------
+const rating = (r) => (r == null ? '—' : chip(`${r}/10`, r >= 7 ? 'ok' : 'warn'));
+
 async function loadUsers() {
   const q = $('userSearch').value.trim();
   const params = new URLSearchParams({ limit: '100' });
@@ -278,8 +149,11 @@ async function loadUsers() {
       { label: '', cell: (u) => avatar(u.photoUrl, u.name) },
       { label: 'Name', cell: (u) => u.name ?? '—' },
       { label: 'Email', cell: (u) => u.email },
-      { label: 'Status', cell: (u) => (u.suspendedAt ? chip('suspended', 'bad') : u.online ? chip('online', 'ok') : chip('offline')) },
-      { label: 'Friends', cell: (u) => String(u.friends) },
+      { label: 'Status', cell: (u) => (u.suspendedAt ? chip('suspended', 'bad') : chip('active', 'ok')) },
+      { label: 'Profile', cell: (u) => u.headline ?? chip('no profile yet') },
+      { label: 'Accuracy', cell: (u) => rating(u.rating) },
+      { label: 'Generation', cell: (u) => (u.cohort ? COHORTS[u.cohort] ?? u.cohort : '—') },
+      { label: 'Days (7)', cell: (u) => String(u.days7) },
       { label: 'App build', cell: (u) => (u.appBuild ? `build ${u.appBuild}` : '—') },
       { label: 'Last sign-in', cell: (u) => ago(u.lastLoginAt) },
     ], users, { onRow: (u) => openUser(u.id), emptyText: 'No users found.' }),
@@ -294,75 +168,66 @@ async function openUser(id) {
     return toast(explain(e), 'err');
   }
   const u = d.user;
-  const actions = el('div', { class: 'actions-bar' });
-  if (can.edit()) {
-    actions.append(
-      u.suspendedAt
-        ? el('button', { class: 'btn primary small', text: 'Unsuspend', onclick: async (e) => { await act(e.currentTarget, () => api('POST', `/admin/db/users/${id}/unsuspend`), 'User unsuspended'); openUser(id); } })
-        : el('button', { class: 'btn danger small', text: 'Suspend…', onclick: async (e) => {
-          const reason = await promptDialog(`Suspend ${u.name ?? u.email}?`, 'They are signed out everywhere and see this reason when they try to sign in.', { placeholder: 'Reason, e.g. Spam nudges', confirmLabel: 'Suspend' });
-          if (reason == null) return;
-          await act(e.currentTarget, () => api('POST', `/admin/db/users/${id}/suspend`, { reason }), 'User suspended');
-          openUser(id);
-        } }),
-      el('button', { class: 'btn ghost small', text: 'Sign out everywhere', onclick: async (e) => {
-        if (!(await confirmDialog('Sign out everywhere?', `${u.name ?? u.email} is signed out on every phone and must sign in with Google again.`))) return;
-        await act(e.currentTarget, () => api('POST', `/admin/db/users/${id}/sign-out`), 'Signed out everywhere');
+  const a = d.astro;
+  const act7 = d.activity;
+  const actions = el('div', { class: 'actions-bar' },
+    u.suspendedAt
+      ? el('button', { class: 'btn primary small', text: 'Unsuspend', onclick: async (e) => { await act(e.currentTarget, () => api('POST', `/admin/db/users/${id}/unsuspend`), 'User unsuspended'); openUser(id); } })
+      : el('button', { class: 'btn danger small', text: 'Suspend…', onclick: async (e) => {
+        const reason = await promptDialog(`Suspend ${u.name ?? u.email}?`, 'They are signed out everywhere and see this reason when they try to sign in.', { placeholder: 'Reason, e.g. Abusive behaviour', confirmLabel: 'Suspend' });
+        if (reason == null) return;
+        await act(e.currentTarget, () => api('POST', `/admin/db/users/${id}/suspend`, { reason }), 'User suspended');
         openUser(id);
       } }),
-      el('button', { class: 'btn ghost small', text: 'Export data', onclick: async (e) => {
-        const r = await act(e.currentTarget, () => api('GET', `/admin/db/users/${id}/export`));
-        if (!r) return;
-        const text = JSON.stringify(r, null, 2);
-        openInfo(el('div', { class: 'info-head' }, el('h3', { text: `Data export · ${u.email}` }), copyButton(text, 'Copy JSON')),
-          el('p', { class: 'muted', text: 'Everything PJ stores about this user (GDPR access request). Copy it into your reply.' }),
-          el('pre', { class: 'tall', text }));
-      } }),
-    );
-  }
-  if (can.own()) {
-    actions.append(el('button', { class: 'btn danger small', text: 'Erase account…', onclick: async (e) => {
-      const typed = await promptDialog('Erase this account for good?', `This permanently deletes ${u.email} with their friends, nudges, games and Bluetooth logs. Type their email to confirm.`, { placeholder: u.email, mustEqual: u.email, confirmLabel: 'Erase' });
+    el('button', { class: 'btn ghost small', text: 'Sign out everywhere', onclick: async (e) => {
+      if (!(await confirmDialog('Sign out everywhere?', `${u.name ?? u.email} is signed out on every phone and must sign in with Google again.`))) return;
+      await act(e.currentTarget, () => api('POST', `/admin/db/users/${id}/sign-out`), 'Signed out everywhere');
+      openUser(id);
+    } }),
+    el('button', { class: 'btn ghost small', text: 'Export data', onclick: async (e) => {
+      const r = await act(e.currentTarget, () => api('GET', `/admin/db/users/${id}/export`));
+      if (!r) return;
+      const text = JSON.stringify(r, null, 2);
+      openInfo(el('div', { class: 'info-head' }, el('h3', { text: `Data export · ${u.email}` }), copyButton(text, 'Copy JSON')),
+        el('p', { class: 'muted', text: 'Everything Asteriq stores about this user (GDPR / DPDP access request). Copy it into your reply.' }),
+        el('pre', { class: 'tall', text }));
+    } }),
+    el('button', { class: 'btn danger small', text: 'Erase account…', onclick: async (e) => {
+      const typed = await promptDialog('Erase this account for good?', `This permanently deletes ${u.email} with their astrology profile, ratings, feedback and check-ins. Type their email to confirm.`, { placeholder: u.email, mustEqual: u.email, confirmLabel: 'Erase' });
       if (typed == null) return;
       const done = await act(e.currentTarget, () => api('DELETE', `/admin/db/users/${id}`, { confirmEmail: typed }), 'Account erased');
       if (done !== undefined) { $('infoDialog').close(); loadUsers().catch(() => {}); }
     } }));
-  }
 
   openInfo(
     el('div', { class: 'info-head' },
       el('div', { class: 'who' }, avatar(u.photoUrl, u.name), el('div', {}, el('h3', { text: u.name ?? u.email }), el('small', { class: 'muted', text: u.email }))),
-      u.suspendedAt ? chip('suspended', 'bad') : u.online ? chip('online', 'ok') : chip('offline')),
+      u.suspendedAt ? chip('suspended', 'bad') : chip('active', 'ok')),
     u.suspendedAt ? el('p', { class: 'notice bad', text: `Suspended ${ago(u.suspendedAt)}: ${u.suspendedReason ?? 'no reason given'}` }) : null,
-    actions.childElementCount ? actions : null,
+    actions,
     el('div', { class: 'facts' },
       fact('Joined', when(u.createdAt)),
       fact('Last sign-in', ago(u.lastLoginAt)),
       fact('App build', u.appBuild ? `build ${u.appBuild}` : 'unknown'),
       fact('Privacy notice', u.privacyVersion ? `${u.privacyVersion} (accepted ${ago(u.privacyAcceptedAt)})` : '—'),
-      fact('Nudges', `${d.counts.nudgesSent} sent · ${d.counts.nudgesReceived} received`),
-      fact('Push devices', String(d.counts.pushDevices))),
-    el('h3', { text: `Friends (${d.friends.length})` }),
-    table([
-      { label: 'Name', cell: (f) => f.name ?? f.email },
-      { label: 'Email', cell: (f) => f.email },
-      { label: 'Status', cell: (f) => chip(f.status === 'accepted' ? 'friends' : f.requestedByUser ? 'request sent' : 'request received', f.status === 'accepted' ? 'ok' : '') },
-      { label: 'Since', cell: (f) => when(f.since) },
-    ], d.friends, { onRow: (f) => openUser(f.id), emptyText: 'No friends yet.' }),
-    el('h3', { text: 'Recent games' }),
-    table([
-      { label: 'Lobby', cell: (g) => g.code },
-      { label: 'Role', cell: (g) => (g.hosted ? 'host' : `guest (${g.invite})`) },
-      { label: 'Status', cell: (g) => g.status },
-      { label: 'When', cell: (g) => when(g.createdAt) },
-    ], d.games, { emptyText: 'No games yet.' }),
-    el('h3', { text: 'Recent Bluetooth sessions' }),
-    table([
-      { label: 'Started', cell: (s) => when(s.startedAt) },
-      { label: 'Role', cell: (s) => s.role },
-      { label: 'Status', cell: (s) => chip(s.status, s.status === 'failed' ? 'bad' : s.status === 'active' ? 'ok' : '') },
-      { label: 'Ended because', cell: (s) => (s.endReason ? reasonText(s.endReason) : '—') },
-    ], d.sessions, { onRow: (s) => openSession(s.id), emptyText: 'No Bluetooth sessions yet.' }),
+      fact('Push devices', String(act7.pushDevices))),
+    el('h3', { text: 'Astrology profile' }),
+    a ? el('div', { class: 'facts' },
+      fact('Headline', a.headline ?? '—'),
+      fact('Sun sign', a.sign ?? 'no birth details'),
+      fact('Generation', COHORTS[a.cohort] ?? a.cohort),
+      fact('Gender', GENDERS[a.gender] ?? a.gender),
+      fact('Accuracy', a.rating == null ? 'not rated' : `${a.rating}/10${a.firstRating != null && a.firstRating !== a.rating ? ` (first ${a.firstRating}/10)` : ''}`),
+      fact('Top areas', (a.topAreas ?? []).join(', ') || '—'),
+      fact('Last area read', a.lastArea ?? '—'),
+      fact('Daily questions answered', String(a.dailyAnswers)),
+      fact('Profile updated', ago(a.updatedAt))) : empty('No profile yet (the user has not finished the quiz).'),
+    el('h3', { text: 'Last 30 days' }),
+    el('div', { class: 'stats' },
+      stat('Days opened', act7.opened30, act7.opened30 ? 'ok' : ''),
+      stat('Good days', act7.good30, act7.good30 ? 'ok' : ''),
+      stat('Hard days', act7.bad30, act7.bad30 > act7.good30 ? 'warn' : ''),
+      stat('Felt true / off', `${act7.feltTrue} / ${act7.feltOff}`, act7.feltOff > act7.feltTrue ? 'warn' : '')),
   );
 }
 
@@ -370,13 +235,13 @@ async function openUser(id) {
 async function loadSettings() {
   const { settings } = await api('GET', '/admin/db/settings');
   $('settingsBody').replaceChildren(
-    el('p', { class: 'muted', text: 'Phones pick up changes the next time they check in (every few seconds while PJ is open).' }),
+    el('p', { class: 'muted', text: 'Phones pick up changes when Asteriq opens or comes back to the screen.' }),
     ...settings.map(settingRow),
   );
 }
 
 function settingRow(s) {
-  const disabled = !can.edit();
+  const disabled = false;
   let input;
   if (s.type === 'boolean') {
     input = el('label', { class: 'switch' }, el('input', { type: 'checkbox', checked: s.value, disabled }), el('span', {}));
@@ -408,7 +273,7 @@ function settingRow(s) {
 async function loadAnnouncements() {
   const [{ announcements }, health] = await Promise.all([api('GET', '/admin/db/announcements'), api('GET', '/admin/db/health').catch(() => null)]);
   const push = health?.push?.configured;
-  const title = el('input', { type: 'text', maxlength: '80', placeholder: 'Title, e.g. New game this weekend', class: 'wide' });
+  const title = el('input', { type: 'text', maxlength: '80', placeholder: 'Title, e.g. Diwali special forecast', class: 'wide' });
   const body = el('textarea', { maxlength: '500', placeholder: 'Message (up to 500 characters)', rows: '3' });
   const level = el('select', {}, el('option', { value: 'info', text: 'Info' }), el('option', { value: 'important', text: 'Important' }));
   const ends = el('select', {}, [['', 'Until I end it'], ['24', 'For 24 hours'], ['72', 'For 3 days'], ['168', 'For 7 days']].map(([v, t]) => el('option', { value: v, text: t })));
@@ -422,14 +287,14 @@ async function loadAnnouncements() {
   } });
 
   $('announceBody').replaceChildren(
-    can.edit() ? block('New announcement',
+    block('New announcement',
       el('div', { class: 'compose' }, title, body, el('div', { class: 'filters' }, level, ends, publish)),
-      el('small', { class: 'muted', text: push ? 'Also sent as a push notification to every phone.' : "Push notifications aren't set up yet, so users see it the next time they open PJ." })) : null,
+      el('small', { class: 'muted', text: push ? 'Also sent as a push notification to every phone.' : "Push notifications aren't set up yet, so users see it the next time they open Asteriq." })),
     block('Published', announcements.length ? el('div', { class: 'cards' }, announcements.map((a) => el('article', { class: `announcement ${a.level}` },
       el('div', { class: 'info-head' }, el('b', { text: a.title }), el('div', { class: 'chips' }, chip(a.level, a.level === 'important' ? 'warn' : ''), a.live ? chip('live', 'ok') : chip('ended'))),
       el('p', { text: a.body }),
       el('small', { class: 'muted', text: `By ${a.createdBy} · ${when(a.createdAt)}${a.endsAt ? ` · ${a.live ? 'ends' : 'ended'} ${when(a.endsAt)}` : ''}` }),
-      a.live && can.edit() ? el('button', { class: 'btn ghost small', text: 'End now', onclick: async (e) => {
+      a.live ? el('button', { class: 'btn ghost small', text: 'End now', onclick: async (e) => {
         await act(e.currentTarget, () => api('POST', `/admin/db/announcements/${a.id}/end`), 'Announcement ended');
         loadAnnouncements().catch(() => {});
       } }) : null))) : empty('No announcements yet.')),
@@ -452,52 +317,31 @@ async function loadReleases() {
       stat('Newest downloaded', s?.newestBuild ? `build ${s.newestBuild}` : '—'),
       stat('Minimum build', r.minBuild ? `build ${r.minBuild}` : 'none', r.minBuild ? 'warn' : '', 'older builds must update')),
     el('div', { class: 'actions-bar' },
-      s?.pinned && can.edit() ? el('button', { class: 'btn primary small', text: 'Offer the newest build again', onclick: pin(null) }) : null,
+      s?.pinned ? el('button', { class: 'btn primary small', text: 'Offer the newest build again', onclick: pin(null) }) : null,
       el('button', { class: 'btn ghost small', text: 'Change minimum build…', onclick: () => document.querySelector('[data-load="settings"]').click() })),
     block('Builds kept on the laptop server', table([
       { label: 'Build', cell: (b) => `build ${b.buildNumber}` },
       { label: 'Size', cell: (b) => formatBytes(b.size) },
       { label: 'Downloaded', cell: (b) => when(b.downloadedAt) },
-      { label: '', cell: (b) => (s && b.buildNumber === s.buildNumber ? chip('offered', 'ok') : can.edit() ? el('button', { class: 'btn ghost small', text: 'Offer this build', onclick: pin(b.buildNumber) }) : '') },
+      { label: '', cell: (b) => (s && b.buildNumber === s.buildNumber ? chip('offered', 'ok') : el('button', { class: 'btn ghost small', text: 'Offer this build', onclick: pin(b.buildNumber) })) },
     ], r.kept, { emptyText: 'No APKs on the server yet. The start script downloads the newest GitHub release.' }),
     el('small', { class: 'muted', text: 'The server keeps the 3 newest builds. Every merge to main publishes a new one automatically.' })),
     block('Builds people are running', bars(r.distribution.map((d) => ({ label: d.build === null ? 'Unknown (older app)' : `build ${d.build}`, value: d.users, kind: d.build !== null && s && d.build < s.buildNumber ? 'warn' : '' })))),
   );
 }
 
-// ---------- Security & admins ----------
+// ---------- Security ----------
 async function loadSecurity() {
-  const [sec, { admins }] = await Promise.all([api('GET', '/admin/db/security'), api('GET', '/admin/db/admins')]);
+  const sec = await api('GET', '/admin/db/security');
   const blockedHour = sec.rateLimits.limiters.reduce((n, l) => n + l.blockedLastHour, 0);
-  const email = el('input', { type: 'email', placeholder: 'name@gmail.com', class: 'wide' });
-  const role = el('select', {}, ['viewer', 'editor', 'owner'].map((r) => el('option', { value: r, text: r })));
   $('securityBody').replaceChildren(
     el('div', { class: 'stats' },
       stat('Blocked requests (1 h)', blockedHour, blockedHour ? 'warn' : ''),
       stat('Failed admin sign-ins (24 h)', sec.counts.failedLogins24h, sec.counts.failedLogins24h ? 'bad' : ''),
-      stat('Spoof attempts (24 h)', sec.counts.spoof24h, sec.counts.spoof24h ? 'bad' : ''),
       stat('Suspended users', sec.counts.suspendedUsers)),
     block('Who can use this panel',
-      table([
-        { label: 'Email', cell: (a) => a.email + (a.email === state.admin?.email ? ' (you)' : '') },
-        { label: 'Role', cell: (a) => (can.own() && a.email !== state.admin?.email
-          ? el('select', { onchange: async (e) => { await act(null, () => api('PUT', `/admin/db/admins/${encodeURIComponent(a.email)}`, { role: e.target.value }), 'Role updated'); } },
-            ['owner', 'editor', 'viewer'].map((r) => el('option', { value: r, text: r, selected: a.role === r })))
-          : chip(a.role, a.role === 'owner' ? 'ok' : '')) },
-        { label: 'Added by', cell: (a) => a.addedBy },
-        { label: '', cell: (a) => (can.own() && a.email !== state.admin?.email ? el('button', { class: 'btn ghost small', text: 'Remove', onclick: async (e) => {
-          if (!(await confirmDialog(`Remove ${a.email}?`, 'They can no longer sign in to the admin panel.'))) return;
-          await act(e.currentTarget, () => api('DELETE', `/admin/db/admins/${encodeURIComponent(a.email)}`), 'Admin removed');
-          loadSecurity().catch(() => {});
-        } }) : '') },
-      ], admins),
-      can.own() ? el('div', { class: 'filters' }, email, role, el('button', { class: 'btn primary small', text: 'Add admin', onclick: async (e) => {
-        const value = email.value.trim().toLowerCase();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return toast(adminErrorText('invalid_admin'), 'err');
-        const r = await act(e.currentTarget, () => api('PUT', `/admin/db/admins/${encodeURIComponent(value)}`, { role: role.value }), `${value} added as ${role.value}`);
-        if (r) loadSecurity().catch(() => {});
-      } })) : null,
-      el('small', { class: 'muted', text: 'Owner: everything, including admins and erasing users. Editor: changes data and settings. Viewer: read-only. They sign in with that Google account.' })),
+      el('p', { text: `Only the owner: ${state.admin?.email ?? 'the email in ADMIN_EMAILS'}.` }),
+      el('small', { class: 'muted', text: 'Access is set by ADMIN_EMAILS in the server .env file. Any other Google account is refused, even if it was an admin before.' })),
     block('Brute-force protection (since the server started)', table([
       { label: 'Limit', cell: (l) => LIMITERS[l.name] ?? l.name },
       { label: 'Allowed', cell: (l) => `${l.max} per ${duration(l.windowSeconds)}` },
@@ -537,7 +381,7 @@ async function loadServer() {
       stat('Database size', `${h.database.sizeMb} MB`, '', `MySQL ${h.database.version}`),
       stat('Push notifications', h.push.configured ? 'on' : 'off', h.push.configured ? 'ok' : 'warn', h.push.configured ? `${h.push.sent} sent · ${h.push.failed} failed` : 'Firebase not set up yet'),
       stat('Offered build', h.release ? `build ${h.release.buildNumber}` : 'none', h.release?.pinned ? 'warn' : ''),
-      stat('App', h.app.maintenanceMode ? 'maintenance' : 'open', h.app.maintenanceMode ? 'bad' : 'ok', `${h.app.playEnabled ? 'games on' : 'games paused'}${h.app.minBuild ? ` · min build ${h.app.minBuild}` : ''}`)),
+      stat('App', h.app.maintenanceMode ? 'maintenance' : 'open', h.app.maintenanceMode ? 'bad' : 'ok', h.app.minBuild ? `min build ${h.app.minBuild}` : 'no minimum build')),
     block('Address',
       h.server.publicUrl ? el('div', { class: 'filters' }, el('code', { text: h.server.publicUrl }), copyButton(h.server.publicUrl)) : empty('Not running through the Cloudflare tunnel.'),
       el('small', { class: 'muted', text: `Node ${h.server.node} · port ${h.server.port} · database ${h.database.name}` })),
@@ -556,8 +400,8 @@ async function loadServer() {
 }
 
 // ---------- wiring ----------
-const loaders = { play: loadPlay, users: loadUsers, settings: loadSettings, announcements: loadAnnouncements, releases: loadReleases, security: loadSecurity, server: loadServer };
-const bodies = { play: 'playBody', users: 'usersBody', settings: 'settingsBody', announcements: 'announceBody', releases: 'releasesBody', security: 'securityBody', server: 'serverBody' };
+const loaders = { users: loadUsers, settings: loadSettings, announcements: loadAnnouncements, releases: loadReleases, security: loadSecurity, server: loadServer };
+const bodies = { users: 'usersBody', settings: 'settingsBody', announcements: 'announceBody', releases: 'releasesBody', security: 'securityBody', server: 'serverBody' };
 
 async function runLoader(name, placeholder = true) {
   const body = $(bodies[name]);

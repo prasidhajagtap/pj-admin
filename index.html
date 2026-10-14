@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="referrer" content="no-referrer">
   <meta name="author" content="Prasidha Jagtap">
-  <!-- Only this site, Google Sign-In, the GitHub API (server discovery) and the PJ server may be used.
+  <!-- Only this site, Google Sign-In, the GitHub API (server discovery) and the Asteriq server may be used.
        style-src allows inline styles because Google's sign-in button injects its own; scripts stay strict. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self';
     script-src 'self' https://accounts.google.com/gsi/client;
@@ -15,7 +15,7 @@
     connect-src 'self' https://accounts.google.com/gsi/ https://api.github.com https://*.trycloudflare.com http://localhost:3000;
     img-src 'self' data: blob: https://*.googleusercontent.com https://*.trycloudflare.com http://localhost:3000;
     object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>PJ Admin</title>
+  <title>Asteriq Admin</title>
   <link rel="icon" id="favicon" href="icon.png">
   <link rel="stylesheet" href="styles.css">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -24,7 +24,7 @@
   <div class="bg" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
 
   <header class="topbar glass">
-    <div class="brand"><img id="brandLogo" class="logo-img brand-img" src="icon.png" alt="PJ logo"><div><b>PJ Admin</b><small id="dbName">pj_app</small></div></div>
+    <div class="brand"><img id="brandLogo" class="logo-img brand-img" src="icon.png" alt="Asteriq logo"><div><b>Asteriq Admin</b><small id="dbName">pj_app</small></div></div>
     <div class="topbar-right">
       <button id="serverPill" class="pill" title="Server status">
         <i class="dot"></i><span id="serverText">Finding server…</span>
@@ -40,7 +40,7 @@
   <!-- Sign in -->
   <main id="loginView" class="center hidden">
     <section class="glass card login">
-      <img class="logo-img big brand-img" src="icon.png" alt="PJ logo">
+      <img class="logo-img big brand-img" src="icon.png" alt="Asteriq logo">
       <h1>Database admin</h1>
       <p class="muted">Sign in with your admin Google account.</p>
       <div id="googleBtn"></div>
@@ -51,7 +51,7 @@
   <!-- Server offline -->
   <main id="offlineView" class="center hidden">
     <section class="glass card login">
-      <img class="logo-img big dim brand-img" src="icon.png" alt="PJ logo">
+      <img class="logo-img big dim brand-img" src="icon.png" alt="Asteriq logo">
       <h1>Server is offline</h1>
       <p class="muted">Start it on the laptop: double-click<br><code>dev-tools\start-pj-server.cmd</code></p>
       <button id="retryBtn" class="btn primary">Try again</button>
@@ -62,12 +62,11 @@
   <main id="appView" class="layout hidden">
     <aside class="glass sidebar">
       <div class="nav-title first">Control</div>
-      <button class="nav-item control" data-panel="playView" data-load="play"><span>📡 Play &amp; Bluetooth</span><small id="playBadge"></small></button>
       <button class="nav-item control" data-panel="usersView" data-load="users"><span>👤 Users</span></button>
       <button class="nav-item control" data-panel="settingsView" data-load="settings"><span>🎛 App settings</span></button>
       <button class="nav-item control" data-panel="announceView" data-load="announcements"><span>📣 Announcements</span></button>
       <button class="nav-item control" data-panel="releasesView" data-load="releases"><span>📦 Releases</span></button>
-      <button class="nav-item control" data-panel="securityView" data-load="security"><span>🛡 Security &amp; admins</span></button>
+      <button class="nav-item control" data-panel="securityView" data-load="security"><span>🛡 Security</span></button>
       <button class="nav-item control" data-panel="serverView" data-load="server"><span>🖥 Server</span></button>
       <div class="nav-title">Data</div>
       <button id="sqlTab" class="nav-item sql" data-panel="sqlView"><span>⌘</span> SQL editor</button>
@@ -127,7 +126,7 @@
 
     <section id="logoView" class="glass panel hidden">
       <div class="panel-head">
-        <div><h2>App logo</h2><small class="muted">Shown everywhere in the app and here. PNG or SVG with a transparent background.</small></div>
+        <div><h2>App logo</h2><small class="muted">The emblem shown in the app and here (swap it for festivals). PNG or SVG with a transparent background. The app icon on phones changes with a new build.</small></div>
         <div class="toolbar"><button id="reloadLogo" class="btn ghost" title="Reload">↻</button></div>
       </div>
       <div class="logo-module">
@@ -162,17 +161,10 @@
       <div id="logoHistory" class="logo-history"></div>
     </section>
 
-    <section id="playView" class="glass panel hidden">
-      <div class="panel-head">
-        <div><h2>Play &amp; Bluetooth</h2><small class="muted">Live lobbies, Bluetooth sessions with their step-by-step logs, and spoofing alerts</small></div>
-        <div class="toolbar"><button class="btn ghost" data-reload="play" title="Reload">↻</button></div>
-      </div>
-      <div class="scroll" id="playBody"></div>
-    </section>
 
     <section id="usersView" class="glass panel hidden">
       <div class="panel-head">
-        <div><h2>Users</h2><small class="muted">Find a user, see their friends and games, suspend, sign out everywhere, export or erase</small></div>
+        <div><h2>Users</h2><small class="muted">Find a user, see their astrology profile and activity, suspend, sign out everywhere, export or erase</small></div>
         <div class="toolbar"><input id="userSearch" type="search" placeholder="Name or email…"><label class="check"><input id="userSuspendedOnly" type="checkbox"> Suspended only</label><button class="btn ghost" data-reload="users" title="Reload">↻</button></div>
       </div>
       <div class="scroll" id="usersBody"></div>
@@ -204,7 +196,7 @@
 
     <section id="securityView" class="glass panel hidden">
       <div class="panel-head">
-        <div><h2>Security &amp; admins</h2><small class="muted">Blocked requests, failed admin sign-ins, admin activity and who can use this panel</small></div>
+        <div><h2>Security</h2><small class="muted">Blocked requests, failed admin sign-ins, admin activity and who can use this panel</small></div>
         <div class="toolbar"><button class="btn ghost" data-reload="security" title="Reload">↻</button></div>
       </div>
       <div class="scroll" id="securityBody"></div>
@@ -219,9 +211,9 @@
     </section>
 
     <section id="emptyView" class="glass panel center-content">
-      <img class="logo-img big brand-img" src="icon.png" alt="PJ logo">
-      <h2>PJ control centre</h2>
-      <p class="muted">Pick a screen on the left: play and Bluetooth, users, app settings, announcements, releases, security and server, or browse the database tables.</p>
+      <img class="logo-img big brand-img" src="icon.png" alt="Asteriq logo">
+      <h2>Asteriq control centre</h2>
+      <p class="muted">Pick a screen on the left: users, app settings, announcements, releases, security and server, the logo, or browse the database tables.</p>
     </section>
   </main>
 
@@ -264,7 +256,7 @@
     </div>
   </dialog>
 
-  <footer class="credits">© 2026 Prasidha Jagtap · Developed by Prasidha Jagtap · <a href="privacy.html">Privacy</a></footer>
+  <footer class="credits">Asteriq Admin · <a href="privacy.html">Privacy</a></footer>
 
   <div id="toasts"></div>
   <script src="app.js"></script>
