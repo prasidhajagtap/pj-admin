@@ -319,7 +319,6 @@ pre.tall { max-height: 60vh; }
 .announcement p { margin: 0; font-size: 14px; line-height: 1.45; color: #dbe1f0; }
 .announcement .btn { justify-self: start; }
 /* Viewers: change controls are hidden or disabled; the server refuses changes anyway. */
-body[data-role="viewer"] #addRowBtn, body[data-role="viewer"] .row-btn, body[data-role="viewer"] #publishLogo { display: none; }
 @media (max-width: 760px) {
   .setting { grid-template-columns: 1fr; }
   .setting-control { justify-content: flex-start; }
