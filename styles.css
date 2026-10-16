@@ -257,6 +257,26 @@ body.doc { padding: 24px 16px; }
 .grid.clickable tbody tr { cursor: pointer; }
 .grid.clickable tbody tr:focus-visible td { background: rgba(139,92,246,.18); outline: none; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Home-screen icon */
+.icon-now { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.icon-now img { width: 96px; height: 96px; border-radius: 50%; box-shadow: 0 8px 28px rgba(0,0,0,.45); }
+.icon-now .status { display: grid; gap: 4px; min-width: 0; }
+.icon-now .status b { font-size: 20px; }
+.suggestions { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.suggestion { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; padding: 12px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+.suggestion.soon { border-color: rgba(245,158,11,.45); background: rgba(245,158,11,.07); }
+.suggestion img { width: 56px; height: 56px; border-radius: 50%; }
+.suggestion .text { display: grid; gap: 3px; min-width: 0; }
+.suggestion .text b { font-size: 15px; }
+.suggestion .actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.icon-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.icon-tile { display: grid; justify-items: center; gap: 6px; padding: 12px 8px; border-radius: 16px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); cursor: pointer; color: inherit; font: inherit; text-align: center; }
+.icon-tile:hover, .icon-tile:focus-visible { border-color: rgba(167,139,250,.6); outline: none; }
+.icon-tile.on { border-color: rgba(52,211,153,.6); background: rgba(52,211,153,.08); }
+.icon-tile img { width: 64px; height: 64px; border-radius: 50%; }
+.icon-tile span { font-size: 12.5px; line-height: 1.25; }
+.icon-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.icon-form label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap;
   background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); color: var(--muted); }
 .chip.ok { color: #6ee7b7; border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.1); }

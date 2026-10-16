@@ -64,6 +64,7 @@
       <div class="nav-title first">Control</div>
       <button class="nav-item control" data-panel="usersView" data-load="users"><span>👤 Users</span></button>
       <button class="nav-item control" data-panel="settingsView" data-load="settings"><span>🎛 App settings</span></button>
+      <button class="nav-item control" data-panel="iconView" data-load="icons"><span>🪔 Home-screen icon</span></button>
       <button class="nav-item control" data-panel="announceView" data-load="announcements"><span>📣 Announcements</span></button>
       <button class="nav-item control" data-panel="releasesView" data-load="releases"><span>📦 Releases</span></button>
       <button class="nav-item control" data-panel="securityView" data-load="security"><span>🛡 Security</span></button>
@@ -126,7 +127,7 @@
 
     <section id="logoView" class="glass panel hidden">
       <div class="panel-head">
-        <div><h2>App logo</h2><small class="muted">The emblem shown in the app and here (swap it for festivals). PNG or SVG with a transparent background. The app icon on phones changes with a new build.</small></div>
+        <div><h2>App logo</h2><small class="muted">The emblem shown in the app and here (swap it for festivals). PNG or SVG with a transparent background. For the icon on phones' home screens, see Home-screen icon.</small></div>
         <div class="toolbar"><button id="reloadLogo" class="btn ghost" title="Reload">↻</button></div>
       </div>
       <div class="logo-module">
@@ -176,6 +177,14 @@
         <div class="toolbar"><button class="btn ghost" data-reload="settings" title="Reload">↻</button></div>
       </div>
       <div class="scroll" id="settingsBody"></div>
+    </section>
+
+    <section id="iconView" class="glass panel hidden">
+      <div class="panel-head">
+        <div><h2>Home-screen icon</h2><small class="muted">Dress up the Asteriq icon on phones for festivals: pick when it shows, or take a suggestion</small></div>
+        <div class="toolbar"><button class="btn ghost" data-reload="icons" title="Reload">↻</button></div>
+      </div>
+      <div class="scroll" id="iconBody"></div>
     </section>
 
     <section id="announceView" class="glass panel hidden">

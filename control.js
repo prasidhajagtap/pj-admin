@@ -269,6 +269,77 @@ function settingRow(s) {
   return row;
 }
 
+// ---------- Home-screen icon ----------
+// Festive icons are built into the app; the server says which one phones show and on which days.
+// Phones switch when Asteriq goes to the background after being opened.
+const iconImg = (key) => `icons/${key}.png`;
+const dayLabel = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const inDays = (n) => (n === 0 ? 'today' : n === 1 ? 'tomorrow' : n < 0 ? 'on now' : `in ${n} days`);
+
+async function saveIcon(button, body, success) {
+  const r = await act(button, () => api('PUT', '/admin/db/icons', body), success);
+  if (r) renderIcons(r);
+}
+
+async function loadIcons() {
+  renderIcons(await api('GET', '/admin/db/icons'));
+}
+
+function renderIcons(s) {
+  const label = (key) => s.icons.find((i) => i.key === key)?.label ?? key;
+  let status;
+  if (s.icon === 'default') status = 'Phones show the everyday icon.';
+  else if (s.showing === s.icon) status = s.until ? `Showing until ${dayLabel(s.until)}, then back to everyday by itself.` : 'Showing until you change it.';
+  else if (s.from && s.today < s.from) status = `Starts ${dayLabel(s.from)}${s.until ? `, ends ${dayLabel(s.until)}` : ''}. Phones show the everyday icon until then.`;
+  else status = `Ended ${dayLabel(s.until)}. Phones are back on the everyday icon.`;
+  const now = el('div', { class: 'block' },
+    el('h3', { text: 'Now on phones' }),
+    el('div', { class: 'icon-now' },
+      el('img', { src: iconImg(s.showing), alt: `${label(s.showing)} icon` }),
+      el('div', { class: 'status' },
+        el('b', { text: s.icon === 'default' ? label('default') : label(s.icon) }),
+        el('span', { class: 'muted', text: status }),
+        s.icon !== 'default' ? el('div', {}, el('button', { class: 'btn ghost small', text: 'Back to the everyday icon', onclick: (e) => saveIcon(e.currentTarget, { icon: 'default' }, 'Everyday icon from now') })) : '')));
+
+  const smart = el('div', { class: 'block' },
+    el('h3', { text: '✨ Coming up: suggested icons' }),
+    el('p', { class: 'muted', text: 'Worked out from the Indian calendar (Sun and Moon), so the dates stay right every year. Each suggestion starts a few days early and ends by itself.' }),
+    s.suggestions.length
+      ? el('div', { class: 'suggestions' }, ...s.suggestions.map((f) => el('div', { class: `suggestion${f.daysAway <= 7 && !f.scheduled ? ' soon' : ''}` },
+        el('img', { src: iconImg(f.icon), alt: `${f.iconLabel} icon` }),
+        el('div', { class: 'text' },
+          el('b', { text: `${f.festival} · ${dayLabel(f.date)}` }),
+          el('span', { class: 'muted', text: `${f.approx ? 'Around this date (local calendars can differ by a day), ' : ''}${inDays(f.daysAway)}` }),
+          el('span', { text: `Show the ${f.iconLabel} icon ${f.from === s.today ? 'from today' : `from ${dayLabel(f.from)}`} to ${dayLabel(f.until)}` })),
+        el('div', { class: 'actions' },
+          f.scheduled
+            ? chip('Scheduled ✓', 'ok')
+            : el('button', { class: 'btn small primary', text: f.from === s.today ? 'Use now' : 'Schedule', onclick: (e) => saveIcon(e.currentTarget, { icon: f.icon, from: f.from === s.today ? '' : f.from, until: f.until }, `${f.iconLabel} icon scheduled`) })))))
+      : empty('No festivals in the next few weeks.'));
+
+  const from = el('input', { type: 'date', min: s.today });
+  const until = el('input', { type: 'date', min: s.today });
+  let picked = s.icon === 'default' ? 'diwali' : s.icon;
+  const tiles = s.icons.filter((i) => i.key !== 'default').map((i) => {
+    const t = el('button', { type: 'button', class: `icon-tile${i.key === picked ? ' on' : ''}`, onclick: () => { picked = i.key; tiles.forEach((x) => x.classList.toggle('on', x === t)); } },
+      el('img', { src: iconImg(i.key), alt: '' }), el('span', { text: i.label }));
+    return t;
+  });
+  const choose = el('div', { class: 'block' },
+    el('h3', { text: 'Choose an icon yourself' }),
+    el('div', { class: 'icon-grid' }, ...tiles),
+    el('div', { class: 'icon-form' },
+      el('label', {}, 'First day (empty = now)', from),
+      el('label', {}, 'Last day (empty = until changed)', until),
+      el('button', { class: 'btn primary', text: 'Save', onclick: (e) => {
+        if (from.value && until.value && from.value > until.value) return toast('The last day is before the first day.', 'bad');
+        saveIcon(e.currentTarget, { icon: picked, from: from.value, until: until.value }, `${label(picked)} icon saved`);
+      } })),
+    el('small', { class: 'muted', text: 'Phones switch the next time someone opens Asteriq and then leaves it. Users who prefer the everyday icon can keep it (Me → Settings → Festive app icon).' }));
+
+  $('iconBody').replaceChildren(now, smart, choose);
+}
+
 // ---------- Announcements ----------
 async function loadAnnouncements() {
   const [{ announcements }, health] = await Promise.all([api('GET', '/admin/db/announcements'), api('GET', '/admin/db/health').catch(() => null)]);
@@ -400,8 +471,8 @@ async function loadServer() {
 }
 
 // ---------- wiring ----------
-const loaders = { users: loadUsers, settings: loadSettings, announcements: loadAnnouncements, releases: loadReleases, security: loadSecurity, server: loadServer };
-const bodies = { users: 'usersBody', settings: 'settingsBody', announcements: 'announceBody', releases: 'releasesBody', security: 'securityBody', server: 'serverBody' };
+const loaders = { users: loadUsers, settings: loadSettings, icons: loadIcons, announcements: loadAnnouncements, releases: loadReleases, security: loadSecurity, server: loadServer };
+const bodies = { users: 'usersBody', settings: 'settingsBody', icons: 'iconBody', announcements: 'announceBody', releases: 'releasesBody', security: 'securityBody', server: 'serverBody' };
 
 async function runLoader(name, placeholder = true) {
   const body = $(bodies[name]);
