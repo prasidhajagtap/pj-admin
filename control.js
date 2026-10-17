@@ -137,6 +137,9 @@ const fact = (label, value) => el('div', { class: 'fact' }, el('span', { class: 
 // ---------- Users ----------
 const rating = (r) => (r == null ? '—' : chip(`${r}/10`, r >= 7 ? 'ok' : 'warn'));
 
+// The app language each user picked after sign-in (kept with the account).
+const LANGS = { hinglish: 'Hinglish', en: 'English', hi: 'हिंदी' };
+
 async function loadUsers() {
   const q = $('userSearch').value.trim();
   const params = new URLSearchParams({ limit: '100' });
@@ -154,6 +157,7 @@ async function loadUsers() {
       { label: 'Accuracy', cell: (u) => rating(u.rating) },
       { label: 'Generation', cell: (u) => (u.cohort ? COHORTS[u.cohort] ?? u.cohort : '—') },
       { label: 'Days (7)', cell: (u) => String(u.days7) },
+      { label: 'Language', cell: (u) => LANGS[u.lang] ?? '—' },
       { label: 'App build', cell: (u) => (u.appBuild ? `build ${u.appBuild}` : '—') },
       { label: 'Last sign-in', cell: (u) => ago(u.lastLoginAt) },
     ], users, { onRow: (u) => openUser(u.id), emptyText: 'No users found.' }),
@@ -209,6 +213,7 @@ async function openUser(id) {
       fact('Joined', when(u.createdAt)),
       fact('Last sign-in', ago(u.lastLoginAt)),
       fact('App build', u.appBuild ? `build ${u.appBuild}` : 'unknown'),
+      fact('Language', u.lang ? `${LANGS[u.lang] ?? u.lang} (chosen ${ago(u.langAt)})` : 'not chosen yet'),
       fact('Privacy notice', u.privacyVersion ? `${u.privacyVersion} (accepted ${ago(u.privacyAcceptedAt)})` : '—'),
       fact('Push devices', String(act7.pushDevices))),
     el('h3', { text: 'Astrology profile' }),
