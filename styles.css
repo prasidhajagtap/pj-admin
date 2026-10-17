@@ -346,10 +346,41 @@ pre.tall { max-height: 60vh; }
 }
 
 /* ---------- Public download page (get.html) ---------- */
-.get-card { max-width: 560px; text-align: center; }
-.get-card h1 { margin: 0 0 8px; font-size: 30px; }
-.get-card .lede { font-size: 16px; margin: 0 0 22px; }
-.get-card h2 { text-align: left; }
-.big-btn { display: inline-block; font-size: 17px; padding: 14px 28px; text-decoration: none; border-radius: 16px; }
+.get-card { max-width: 480px; text-align: center; }
+.get-card h1 { margin: 0 0 6px; font-size: 34px; letter-spacing: .3px;
+  background: linear-gradient(90deg, #fbbf24, #f472b6, #a78bfa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.get-card .lede { font-size: 16px; line-height: 1.6; margin: 0 0 26px; color: var(--muted); }
+.get-logo { animation: float 4s ease-in-out infinite; box-shadow: 0 10px 40px rgba(244,114,182,.35); }
+@keyframes float { 50% { transform: translateY(-6px); } }
 .small { font-size: 13px !important; }
-.steps { text-align: left; padding-left: 20px; display: grid; gap: 8px; }
+
+/* The download button: a moving gold-pink-violet gradient, a light sweep across it and a soft
+   breathing glow, so it is the one thing that catches the eye. */
+.dl-btn { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 10px;
+  padding: 16px 34px; border-radius: 999px; font-size: 18px; font-weight: 700; color: #fff; text-decoration: none;
+  background: linear-gradient(110deg, #f59e0b, #ec4899, #8b5cf6, #f59e0b); background-size: 300% 100%;
+  box-shadow: 0 8px 30px rgba(236,72,153,.55), inset 0 1px 0 rgba(255,255,255,.35);
+  animation: dl-flow 6s linear infinite, dl-glow 2.4s ease-in-out infinite;
+  transition: transform .15s ease; }
+.dl-btn::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); transform: skewX(-20deg);
+  animation: dl-shine 2.8s ease-in-out infinite; }
+.get-card .dl-btn { color: #fff; text-shadow: 0 1px 2px rgba(60,10,40,.45); } /* over .doc-card a */
+.dl-btn:hover { transform: translateY(-2px) scale(1.03); }
+.dl-btn:active { transform: scale(.97); }
+.dl-btn:focus-visible { outline: 3px solid #fde68a; outline-offset: 3px; }
+.dl-icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
+  animation: dl-bounce 1.6s ease-in-out infinite; }
+@keyframes dl-flow { to { background-position: 300% 0; } }
+@keyframes dl-glow { 50% { box-shadow: 0 10px 44px rgba(245,158,11,.75), inset 0 1px 0 rgba(255,255,255,.35); } }
+@keyframes dl-shine { 0% { left: -60%; } 60%, 100% { left: 130%; } }
+@keyframes dl-bounce { 50% { transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .dl-btn, .dl-btn::after, .dl-icon, .get-logo { animation: none; }
+}
+
+.get-steps { list-style: none; padding: 0; margin: 26px auto 18px; display: grid; gap: 10px; max-width: 360px; text-align: left; }
+.get-steps li { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 14px;
+  background: rgba(255,255,255,.06); border: 1px solid var(--edge); font-size: 15px; }
+.step-n { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  font-weight: 700; font-size: 14px; background: var(--brand); }
