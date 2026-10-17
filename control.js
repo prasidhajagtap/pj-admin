@@ -140,14 +140,23 @@ const rating = (r) => (r == null ? '—' : chip(`${r}/10`, r >= 7 ? 'ok' : 'warn
 // The app language each user picked after sign-in (kept with the account).
 const LANGS = { hinglish: 'Hinglish', en: 'English', hi: 'हिंदी' };
 
+// How accurate users find their profile (their 1-10 rating). The goal is 9 or more for 9 in 10.
+function accuracyLine(a) {
+  if (!a || !a.rated) return el('p', { class: 'muted small', text: 'Profile accuracy: no ratings yet.' });
+  const good = a.nineUpShare >= 90;
+  return el('p', { class: `notice ${good ? 'ok' : 'warn'}`, text:
+    `Profile accuracy: ${a.average}/10 on average from ${a.rated} rating${a.rated === 1 ? '' : 's'} · ${a.nineUpShare}% rate it 9 or 10 (goal: 90%).` });
+}
+
 async function loadUsers() {
   const q = $('userSearch').value.trim();
   const params = new URLSearchParams({ limit: '100' });
   if (q) params.set('q', q);
   if ($('userSuspendedOnly').checked) params.set('status', 'suspended');
-  const { total, users } = await api('GET', `/admin/db/users?${params}`);
+  const { total, users, accuracy } = await api('GET', `/admin/db/users?${params}`);
   $('usersBody').replaceChildren(
     el('p', { class: 'muted', text: `${total} user${total === 1 ? '' : 's'}${q ? ` matching "${q}"` : ''}` }),
+    accuracyLine(accuracy),
     table([
       { label: '', cell: (u) => avatar(u.photoUrl, u.name) },
       { label: 'Name', cell: (u) => u.name ?? '—' },

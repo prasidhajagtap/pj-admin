@@ -286,6 +286,8 @@ body.doc { padding: 24px 16px; }
 .empty { margin: 4px 0; font-size: 14px; }
 .notice { padding: 10px 14px; border-radius: 12px; margin: 0; font-size: 14px; }
 .notice.bad { color: #fecaca; background: rgba(248,113,113,.12); border: 1px solid rgba(248,113,113,.35); }
+.notice.ok { color: #bbf7d0; background: rgba(52,211,153,.12); border: 1px solid rgba(52,211,153,.35); }
+.notice.warn { color: #fde68a; background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3); }
 .bars { display: grid; gap: 7px; }
 .bar-row { display: grid; grid-template-columns: minmax(120px, 1.2fr) 2fr auto; gap: 10px; align-items: center; font-size: 13px; }
 .bar-label { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
